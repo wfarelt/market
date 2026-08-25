@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}{{ branch.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h5 class="mb-0 fw-semibold">{{ branch.name }}</h5>
+    <span class="font-monospace text-muted small">{{ branch.code }}</span>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'branches:update' branch.pk %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-pencil me-1"></i>Editar
+    </a>
+    <a href="{% url 'branches:list' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Volver
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Branch info -->
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <p class="text-muted small mb-1">Estado</p>
+        {% if branch.is_active %}
+          <span class="badge rounded-pill bg-success mb-3">Activa</span>
+        {% else %}
+          <span class="badge rounded-pill bg-secondary mb-3">Inactiva</span>
+        {% endif %}
+
+        {% if branch.address %}
+          <p class="text-muted small mb-1 mt-2">Dirección</p>
+          <p class="mb-0">{{ branch.address }}</p>
+        {% endif %}
+
+        {% if branch.phone %}
+          <p class="text-muted small mb-1 mt-3">Teléfono</p>
+          <p class="mb-0">{{ branch.phone }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Users assigned -->
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h6 class="fw-semibold mb-3">Usuarios asignados</h6>
+
+        <div class="table-responsive mb-4">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th>Default</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ub in user_branches %}
+              <tr>
+                <td>{{ ub.user.get_full_name|default:ub.user.username }}</td>
+                <td>{{ ub.get_role_display }}</td>
+                <td>
+                  {% if ub.is_default %}
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a href="{% url 'branches:user-remove' branch.pk ub.pk %}"
+                     class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-person-dash"></i>
+                  </a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-3">Sin usuarios asignados.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Assign user form -->
+        <h6 class="fw-semibold mb-3">Asignar usuario</h6>
+        <form method="post" action="{% url 'branches:user-add' branch.pk %}" novalidate>
+          {% csrf_token %}
+          <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+              <label class="form-label small">Usuario</label>
+              {{ form.user }}
+              {% if form.user.errors %}
+                <div class="invalid-feedback d-block">{{ form.user.errors|join:", " }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">Rol</label>
+              {{ form.role }}
+            </div>
+            <div class="col-md-2">
+              <div class="form-check mb-2">
+                {{ form.is_default }}
+                <label class="form-check-label small" for="{{ form.is_default.id_for_label }}">Default</label>
+              </div>
+            </div>
+            <div class="col-md-1">
+              <button type="submit" class="btn btn-primary btn-sm w-100">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

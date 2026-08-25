@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Revocar acceso{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h5 class="mb-0 fw-semibold">Revocar acceso</h5>
+</div>
+
+<div class="card border-0 shadow-sm" style="max-width:480px;">
+  <div class="card-body p-4">
+    <p class="mb-4">
+      ¿Seguro que deseas revocar el acceso de
+      <strong>{{ object.user.get_full_name|default:object.user.username }}</strong>
+      a la sucursal <strong>{{ object.branch.name }}</strong>?
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="d-flex justify-content-end gap-2">
+        <a href="{% url 'branches:detail' object.branch.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-danger">Revocar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

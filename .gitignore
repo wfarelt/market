@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Django – Market project
+staticfiles/
+media/
+!media/.gitkeep
+*.sqlite3
+
+# Environment files (keep only the example)
+.env
+!.env.example

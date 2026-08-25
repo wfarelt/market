@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h5 class="mb-0 fw-semibold">Dashboard</h5>
+</div>
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4 text-muted">
+    Bienvenido, {{ request.user.get_full_name|default:request.user.username }}.
+  </div>
+</div>
+{% endblock %}
