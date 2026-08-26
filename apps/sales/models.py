@@ -25,6 +25,7 @@ class Sale(TimeStampedModel):
 	PAYMENT_CHOICES = [(PAYMENT_CASH, "Efectivo"), (PAYMENT_QR, "QR"), (PAYMENT_CARD, "Tarjeta"), (PAYMENT_TRANSFER, "Transferencia"), (PAYMENT_CREDIT, "Crédito")]
 
 	number = models.CharField(max_length=20, unique=True, blank=True)
+	customer = models.ForeignKey("customers.Customer", null=True, blank=True, on_delete=models.PROTECT, related_name="sales")
 	branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name="sales")
 	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sales")
 	cash_register = models.ForeignKey(CashRegister, on_delete=models.PROTECT, related_name="sales")

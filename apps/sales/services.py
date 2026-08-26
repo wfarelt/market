@@ -51,7 +51,7 @@ def add_sale_item(*, sale, product, quantity, user):
 
 
 @transaction.atomic
-def confirm_sale(*, sale, user, payment_method, cash_received=None):
+def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=None):
 	sale = Sale.objects.select_for_update().prefetch_related("items__product").get(pk=sale.pk)
 	if sale.status != Sale.STATUS_DRAFT:
 		raise ValidationError("La venta ya fue procesada.")
@@ -63,6 +63,8 @@ def confirm_sale(*, sale, user, payment_method, cash_received=None):
 	if not sale.items.exists():
 		raise ValidationError("La venta debe tener al menos un producto.")
 	calculate_totals(sale)
+	if customer:
+		sale.customer = customer
 	if payment_method == Sale.PAYMENT_CASH:
 		cash_received = Decimal(str(cash_received or 0))
 		if cash_received < sale.total:
@@ -71,13 +73,19 @@ def confirm_sale(*, sale, user, payment_method, cash_received=None):
 	else:
 		sale.cash_received, sale.change_amount = None, Decimal("0")
 	if payment_method == Sale.PAYMENT_CREDIT:
-		raise ValidationError("Las ventas a crédito estarán disponibles al integrar Clientes y Créditos.")
+		if not sale.customer_id:
+			raise ValidationError("Debes seleccionar un cliente para realizar una venta a crédito.")
 	movement = InventoryMovement.objects.create(movement_type=InventoryMovement.TYPE_OUTPUT, branch=sale.branch, notes=f"Salida por venta {sale.number}", created_by=user)
 	for item in sale.items.all():
 		InventoryMovementLine.objects.create(movement=movement, product=item.product, quantity=item.quantity, created_by=user)
 	post_inventory_movement(movement)
-	cash_movement = CashMovement.objects.create(cash_register=cash_register, movement_type=CashMovement.TYPE_SALE, amount=sale.total, description=f"Venta {sale.number} ({payment_method})", created_by=user)
+	cash_movement = None
+	if payment_method != Sale.PAYMENT_CREDIT:
+		cash_movement = CashMovement.objects.create(cash_register=cash_register, movement_type=CashMovement.TYPE_SALE, amount=sale.total, description=f"Venta {sale.number} ({payment_method})", created_by=user)
 	sale.status, sale.payment_method, sale.inventory_movement, sale.cash_movement, sale.completed_at = Sale.STATUS_COMPLETED, payment_method, movement, cash_movement, timezone.now()
-	sale.save(update_fields=["status", "payment_method", "cash_received", "change_amount", "inventory_movement", "cash_movement", "completed_at", "updated_at"])
+	sale.save(update_fields=["status", "payment_method", "customer", "cash_received", "change_amount", "inventory_movement", "cash_movement", "completed_at", "updated_at"])
+	if payment_method == Sale.PAYMENT_CREDIT:
+		from apps.customers.services import create_credit_from_sale
+		create_credit_from_sale(sale=sale, user=user)
 	return sale
 

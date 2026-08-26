@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Pago - {{ credit.number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h5 class="mb-0 fw-semibold">Registrar Pago a Crédito {{ credit.number }}</h5>
+  <a href="{% url 'customers:credit-detail' credit.pk %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Volver
+  </a>
+</div>
+
+<div class="row g-4" style="max-width: 800px;">
+  <div class="col-md-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h6 class="fw-semibold mb-3">Información del Crédito</h6>
+        <p class="mb-2"><strong class="text-muted small d-block">Cliente:</strong> {{ credit.customer.full_name }}</p>
+        <p class="mb-2"><strong class="text-muted small d-block">CI/DNI:</strong> {{ credit.customer.id_document }}</p>
+        <p class="mb-2"><strong class="text-muted small d-block">Monto Original:</strong> <span class="font-monospace">{{ credit.original_amount }}</span></p>
+        <p class="mb-0"><strong class="text-muted small d-block">Saldo Pendiente Actual:</strong> <span class="font-monospace fw-bold text-danger">{{ credit.balance }}</span></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="post">
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ form.non_field_errors|join:", " }}
+          </div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Monto a Pagar *</label>
+            {{ form.amount }}
+            {% if form.amount.errors %}<div class="invalid-feedback d-block">{{ form.amount.errors|join:", " }}</div>{% endif %}
+            <small class="text-muted">El pago no puede ser mayor a {{ credit.balance }}.</small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Observación / Nota</label>
+            {{ form.notes }}
+            {% if form.notes.errors %}<div class="invalid-feedback d-block">{{ form.notes.errors|join:", " }}</div>{% endif %}
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-4">
+            <a href="{% url 'customers:credit-detail' credit.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-success">Confirmar Pago</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

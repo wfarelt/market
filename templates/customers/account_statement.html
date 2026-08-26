@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Estado de Cuenta - {{ customer.full_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h5 class="mb-0 fw-semibold">Estado de Cuenta</h5>
+    <span class="text-muted small">Cliente: {{ customer.full_name }} · CI: {{ customer.id_document }} · Código: {{ customer.code }}</span>
+  </div>
+  <div class="d-flex gap-2">
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm d-print-none">
+      <i class="bi bi-printer me-1"></i>Imprimir
+    </button>
+    <a href="{% url 'customers:detail' customer.pk %}" class="btn btn-outline-secondary btn-sm d-print-none">Volver</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-3">
+        <p class="text-muted small mb-1">Monto Total Créditos</p>
+        <h5 class="fw-semibold mb-0 font-monospace">{{ total_credits }}</h5>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-3">
+        <p class="text-muted small mb-1">Total Pagado</p>
+        <h5 class="fw-semibold mb-0 font-monospace text-success">{{ total_paid }}</h5>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-3">
+        <p class="text-muted small mb-1">Saldo Total Pendiente</p>
+        <h5 class="fw-semibold mb-0 font-monospace text-danger">{{ total_balance }}</h5>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 border-0">
+    <h6 class="fw-semibold mb-0">Detalle de Créditos y Pagos</h6>
+  </div>
+  <div class="card-body p-0">
+    {% for credit in credits %}
+    <div class="p-3 border-bottom">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <strong class="font-monospace text-primary me-2">{{ credit.number }}</strong>
+          <span class="text-muted small">Venta: {{ credit.sale.number }} · {{ credit.created_at|date:"d/m/Y H:i" }}</span>
+        </div>
+        <div>
+          <span class="badge rounded-pill {% if credit.status == 'PAID' %}bg-success{% elif credit.status == 'PARTIAL' %}bg-info text-dark{% elif credit.status == 'CANCELLED' %}bg-secondary{% else %}bg-warning text-dark{% endif %} me-2">
+            {{ credit.get_status_display }}
+          </span>
+          <span class="fw-bold font-monospace">Monto: {{ credit.original_amount }} | Saldo: {{ credit.balance }}</span>
+        </div>
+      </div>
+
+      {% if credit.payments.all %}
+      <div class="table-responsive ms-3 mt-2">
+        <table class="table table-sm table-borderless align-middle bg-light rounded mb-0">
+          <thead>
+            <tr class="text-muted small border-bottom">
+              <th>Fecha Pago</th>
+              <th>Caja</th>
+              <th>Monto Pagado</th>
+              <th>Observación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for payment in credit.payments.all %}
+            <tr class="small">
+              <td>{{ payment.created_at|date:"d/m/Y H:i" }}</td>
+              <td>Caja #{{ payment.cash_register.pk }}</td>
+              <td class="font-monospace text-success fw-semibold">+{{ payment.amount }}</td>
+              <td>{{ payment.notes|default:"-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted small ms-3 mb-0">Sin pagos registrados en este crédito.</p>
+      {% endif %}
+    </div>
+    {% empty %}
+    <p class="text-center text-muted py-4 mb-0">Sin créditos registrados.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

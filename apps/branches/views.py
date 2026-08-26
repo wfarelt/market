@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy
 from django.views.generic import (
     CreateView,
@@ -8,17 +8,23 @@ from django.views.generic import (
     UpdateView,
 )
 
+from apps.users.models import User
 from .forms import BranchForm
 from .models import Branch
 
 
-class BranchListView(LoginRequiredMixin, ListView):
+class BranchAccessMixin(LoginRequiredMixin, UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.role in {User.ROLE_SUPERADMIN, User.ROLE_ADMIN}
+
+
+class BranchListView(BranchAccessMixin, ListView):
     model = Branch
     template_name = "branches/list.html"
     context_object_name = "branches"
 
 
-class BranchCreateView(LoginRequiredMixin, CreateView):
+class BranchCreateView(BranchAccessMixin, CreateView):
     model = Branch
     form_class = BranchForm
     template_name = "branches/form.html"
@@ -35,7 +41,7 @@ class BranchCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class BranchUpdateView(LoginRequiredMixin, UpdateView):
+class BranchUpdateView(BranchAccessMixin, UpdateView):
     model = Branch
     form_class = BranchForm
     template_name = "branches/form.html"
@@ -51,7 +57,7 @@ class BranchUpdateView(LoginRequiredMixin, UpdateView):
         return ctx
 
 
-class BranchDetailView(LoginRequiredMixin, DetailView):
+class BranchDetailView(BranchAccessMixin, DetailView):
     model = Branch
     template_name = "branches/detail.html"
     context_object_name = "branch"

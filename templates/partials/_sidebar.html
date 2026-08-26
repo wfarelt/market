@@ -6,26 +6,27 @@
         <i class="bi bi-speedometer2 me-2"></i>Dashboard
       </a>
     </li>
+    {% if request.user.role == 'superadmin' or request.user.role == 'admin' %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'branches' %}fw-semibold{% endif %}"
          href="{% url 'branches:list' %}">
         <i class="bi bi-building me-2"></i>Sucursales
       </a>
     </li>
-    {% if request.user.role == 'superadmin' or request.user.role == 'admin' %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'users' and request.resolver_match.url_name != 'login' %}fw-semibold{% endif %}"
          href="{% url 'users:list' %}">
         <i class="bi bi-people me-2"></i>Usuarios
       </a>
     </li>
-    {% endif %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'products' %}fw-semibold{% endif %}"
          href="{% url 'products:list' %}">
         <i class="bi bi-box-seam me-2"></i>Productos
       </a>
     </li>
+    {% endif %}
+    {% if request.user.role != 'cajero' %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'inventory' and request.resolver_match.url_name == 'list' %}fw-semibold{% endif %}"
          href="{% url 'inventory:list' %}">
@@ -44,24 +45,28 @@
         <i class="bi bi-arrow-left-right me-2"></i>Traspasos
       </a>
     </li>
+    {% endif %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'cash' %}fw-semibold{% endif %}"
          href="{% url 'cash:list' %}">
         <i class="bi bi-cash-stack me-2"></i>Caja
       </a>
     </li>
+    {% if request.user.role != 'almacenero' %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'sales' %}fw-semibold{% endif %}"
          href="{% url 'sales:pos' %}">
         <i class="bi bi-receipt me-2"></i>Ventas
       </a>
     </li>
+    {% endif %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'customers' %}fw-semibold{% endif %}"
-         href="{% url 'branches:list' %}">
+         href="{% url 'customers:list' %}">
         <i class="bi bi-people me-2"></i>Clientes
       </a>
     </li>
+    {% if request.user.role == 'superadmin' or request.user.role == 'admin' %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'purchases' %}fw-semibold{% endif %}"
          href="{% url 'branches:list' %}">
@@ -74,5 +79,6 @@
         <i class="bi bi-bar-chart me-2"></i>Reportes
       </a>
     </li>
+    {% endif %}
   </ul>
 </nav>

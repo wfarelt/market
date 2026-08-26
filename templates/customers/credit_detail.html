@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle Crédito - {{ credit.number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h5 class="mb-0 fw-semibold">Crédito {{ credit.number }}</h5>
+    <span class="text-muted small">Cliente: {{ credit.customer.full_name }} · Venta origen: {{ credit.sale.number }}</span>
+  </div>
+  <div class="d-flex gap-2">
+    {% if credit.status == 'PENDING' or credit.status == 'PARTIAL' %}
+    <a href="{% url 'customers:credit-payment' credit.pk %}" class="btn btn-success btn-sm">
+      <i class="bi bi-cash me-1"></i>Registrar Pago
+    </a>
+    {% endif %}
+    <a href="{% url 'customers:credit-list' %}" class="btn btn-outline-secondary btn-sm">Volver</a>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h6 class="fw-semibold mb-3">Resumen de Crédito</h6>
+        <p class="mb-2"><strong class="text-muted small d-block">Cliente:</strong> {{ credit.customer.full_name }} (CI: {{ credit.customer.id_document }})</p>
+        <p class="mb-2"><strong class="text-muted small d-block">Sucursal:</strong> {{ credit.branch.name }}</p>
+        <p class="mb-2"><strong class="text-muted small d-block">Fecha emisión:</strong> {{ credit.created_at|date:"d/m/Y H:i" }}</p>
+        <p class="mb-2"><strong class="text-muted small d-block">Venta origen:</strong> <a href="{% url 'sales:detail' credit.sale.pk %}">{{ credit.sale.number }}</a></p>
+        <p class="mb-2"><strong class="text-muted small d-block">Monto Original:</strong> <span class="font-monospace fw-semibold">{{ credit.original_amount }}</span></p>
+        <p class="mb-2"><strong class="text-muted small d-block">Saldo Pendiente:</strong> <span class="font-monospace fw-bold {% if credit.balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ credit.balance }}</span></p>
+        <p class="mb-0"><strong class="text-muted small d-block">Estado:</strong>
+          <span class="badge rounded-pill {% if credit.status == 'PAID' %}bg-success{% elif credit.status == 'PARTIAL' %}bg-info text-dark{% elif credit.status == 'CANCELLED' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">
+            {{ credit.get_status_display }}
+          </span>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-0">
+        <h6 class="fw-semibold mb-0">Historial de Pagos</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>N° Pago</th>
+              <th>Fecha</th>
+              <th>Monto</th>
+              <th>Caja</th>
+              <th>Usuario</th>
+              <th>Observación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for payment in credit.payments.all %}
+            <tr>
+              <td class="font-monospace fw-semibold">#{{ payment.pk }}</td>
+              <td>{{ payment.created_at|date:"d/m/Y H:i" }}</td>
+              <td class="font-monospace fw-semibold text-success">{{ payment.amount }}</td>
+              <td>Caja #{{ payment.cash_register.pk }}</td>
+              <td>{{ payment.user.username }}</td>
+              <td>{{ payment.notes|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">No hay pagos registrados para este crédito.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
