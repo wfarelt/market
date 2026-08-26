@@ -69,6 +69,8 @@ class SaleItem(TimeStampedModel):
 		super().clean()
 		if not self.product.is_active:
 			raise ValidationError({"product": "El producto debe estar activo."})
+		if self.quantity != self.quantity.to_integral_value():
+			raise ValidationError({"quantity": "Los productos se venden únicamente por unidades enteras."})
 		if self.discount_amount > self.unit_price * self.quantity:
 			raise ValidationError({"discount_amount": "El descuento no puede superar el importe de la línea."})
 

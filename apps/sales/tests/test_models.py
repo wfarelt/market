@@ -1,11 +1,12 @@
 from decimal import Decimal
 
 from django.test import TestCase
+from django.core.exceptions import ValidationError
 from django.urls import reverse
 
 from apps.branches.models import Branch
 from apps.cash.models import CashMovement, CashRegister
-from apps.cash.services import open_cash_register
+from apps.cash.services import close_cash_register, open_cash_register
 from apps.inventory.models import Stock
 from apps.products.models import Product
 from apps.sales.models import Sale
@@ -43,4 +44,30 @@ class SaleServiceTests(TestCase):
 
 		self.assertRedirects(response, reverse("cash:list"))
 		self.assertContains(response, "No puedes abrir Ventas sin una caja abierta")
+
+	def test_pos_creates_a_new_draft_for_a_new_cash_register(self):
+		old_cash_register = CashRegister.objects.get(user=self.user, status=CashRegister.STATUS_OPEN)
+		old_sale = create_sale(user=self.user)
+		close_cash_register(cash_register=old_cash_register, user=self.user, closing_amount=Decimal("100"))
+		new_cash_register = open_cash_register(user=self.user, opening_amount=Decimal("100"))
+		self.client.force_login(self.user)
+
+		response = self.client.get(reverse("sales:pos"))
+
+		self.assertEqual(response.status_code, 200)
+		new_sale = Sale.objects.get(user=self.user, status=Sale.STATUS_DRAFT, cash_register=new_cash_register)
+		self.assertNotEqual(new_sale.pk, old_sale.pk)
+
+	def test_sale_rejects_fractional_product_quantity(self):
+		sale = create_sale(user=self.user)
+
+		with self.assertRaises(ValidationError):
+			add_sale_item(sale=sale, product=self.product, quantity=Decimal("1.5"), user=self.user)
+
+	def test_pos_shows_stock_for_the_current_branch(self):
+		self.client.force_login(self.user)
+
+		response = self.client.get(reverse("sales:pos"))
+
+		self.assertContains(response, "Disponible: 10")
 

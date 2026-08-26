@@ -11,6 +11,13 @@ from apps.inventory.services import post_inventory_movement
 from .models import Sale, SaleItem
 
 
+def _validate_unit_quantity(quantity):
+	quantity = Decimal(str(quantity))
+	if quantity <= 0 or quantity != quantity.to_integral_value():
+		raise ValidationError("Los productos se venden únicamente por unidades enteras.")
+	return quantity
+
+
 def calculate_totals(sale):
 	subtotal = sum((item.unit_price * item.quantity for item in sale.items.all()), Decimal("0"))
 	discount = sum((item.discount_amount for item in sale.items.all()), Decimal("0"))
@@ -36,8 +43,9 @@ def add_sale_item(*, sale, product, quantity, user):
 		raise ValidationError("No puedes modificar esta venta.")
 	if not product.is_active:
 		raise ValidationError("El producto está inactivo.")
+	quantity = _validate_unit_quantity(quantity)
 	item, created = SaleItem.objects.get_or_create(sale=sale, product=product, defaults={"quantity": 0, "unit_price": product.list_price, "created_by": user})
-	item.quantity += Decimal(str(quantity))
+	item.quantity += quantity
 	item.save()
 	return calculate_totals(sale)
 
