@@ -4,11 +4,28 @@
 
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-4">
-  <h5 class="mb-0 fw-semibold">Dashboard</h5>
+  <div>
+    <h5 class="mb-0 fw-semibold">Dashboard</h5>
+    <span class="text-muted small">{{ request.user.branch|default:"Vista general" }}</span>
+  </div>
+  {% if open_cash_register %}
+  <a href="{% url 'cash:list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-cash-stack me-1"></i>Caja abierta</a>
+  {% else %}
+  <a href="{% url 'cash:open' %}" class="btn btn-primary btn-sm"><i class="bi bi-cash-stack me-1"></i>Abrir caja</a>
+  {% endif %}
 </div>
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-4 text-muted">
-    Bienvenido, {{ request.user.get_full_name|default:request.user.username }}.
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body p-4"><p class="text-muted small mb-1">Ventas de hoy</p><h4 class="fw-semibold mb-0 font-monospace">{{ today_sales_total }}</h4><small class="text-muted">{{ today_sales_count }} comprobante{{ today_sales_count|pluralize:"s" }}</small></div></div></div>
+  <div class="col-sm-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body p-4"><p class="text-muted small mb-1">Existencias</p><h4 class="fw-semibold mb-0">{{ stock_records }}</h4><small class="text-muted">registros de inventario</small></div></div></div>
+  <div class="col-sm-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body p-4"><p class="text-muted small mb-1">Sin existencia</p><h4 class="fw-semibold mb-0 {% if out_of_stock %}text-danger{% endif %}">{{ out_of_stock }}</h4><small class="text-muted">productos por reponer</small></div></div></div>
+  <div class="col-sm-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body p-4"><p class="text-muted small mb-1">Traspasos pendientes</p><h4 class="fw-semibold mb-0">{{ pending_transfers }}</h4><small class="text-muted">borradores o enviados</small></div></div></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7"><div class="card border-0 shadow-sm h-100"><div class="card-body p-0"><div class="d-flex justify-content-between align-items-center p-4 pb-2"><h6 class="fw-semibold mb-0">Ventas recientes</h6><a href="{% url 'sales:pos' %}" class="btn btn-sm btn-outline-secondary">Ir a ventas</a></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Venta</th><th>Sucursal</th><th>Usuario</th><th class="text-end">Total</th></tr></thead><tbody>{% for sale in recent_sales %}<tr><td><a href="{% url 'sales:detail' sale.pk %}">{{ sale.number }}</a></td><td>{{ sale.branch }}</td><td>{{ sale.user }}</td><td class="text-end font-monospace">{{ sale.total }}</td></tr>{% empty %}<tr><td colspan="4" class="text-center text-muted py-4">No hay ventas completadas.</td></tr>{% endfor %}</tbody></table></div></div></div></div>
+  <div class="col-lg-5"><div class="card border-0 shadow-sm h-100"><div class="card-body p-0"><div class="d-flex justify-content-between align-items-center p-4 pb-2"><h6 class="fw-semibold mb-0">Traspasos recientes</h6><a href="{% url 'transfers:list' %}" class="btn btn-sm btn-outline-secondary">Ver todos</a></div><div class="list-group list-group-flush">{% for transfer in recent_transfers %}<a href="{% url 'transfers:detail' transfer.pk %}" class="list-group-item list-group-item-action"><div class="d-flex justify-content-between"><strong>{{ transfer.number }}</strong><span class="badge rounded-pill {% if transfer.status == 'RECEIVED' %}bg-success{% elif transfer.status == 'CANCELLED' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">{{ transfer.get_status_display }}</span></div><small class="text-muted">{{ transfer.origin_branch }} → {{ transfer.destination_branch }}</small></a>{% empty %}<div class="text-center text-muted py-4">No hay traspasos.</div>{% endfor %}</div></div></div></div>
+</div>
   </div>
 </div>
 {% endblock %}
