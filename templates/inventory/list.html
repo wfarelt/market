@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h5 class="mb-0 fw-semibold">Inventario</h5>
+  {% if request.user.role == 'superadmin' or request.user.role == 'admin' %}
+  <a href="{% url 'inventory:create' %}" class="btn btn-primary btn-sm">+ Existencia inicial</a>
+  {% endif %}
+</div>
+
+<div class="card border-0 shadow-sm"><div class="card-body p-0"><div class="table-responsive">
+  <table class="table table-hover align-middle mb-0">
+    <thead class="table-light"><tr><th>SKU</th><th>Producto</th><th>Sucursal</th><th>Unidad</th><th class="text-end">Existencia</th></tr></thead>
+    <tbody>
+      {% for stock in stocks %}
+      <tr><td class="font-monospace">{{ stock.product.sku }}</td><td>{{ stock.product.name }}</td><td>{{ stock.branch.name }}</td><td>{{ stock.product.unit_measure.symbol|default:"-" }}</td><td class="font-monospace text-end">{{ stock.quantity }}</td></tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-center text-muted py-4">No hay existencias registradas.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div></div>
+{% endblock %}

@@ -22,13 +22,13 @@
     {% endif %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'products' %}fw-semibold{% endif %}"
-         href="{% url 'branches:list' %}">
+         href="{% url 'products:list' %}">
         <i class="bi bi-box-seam me-2"></i>Productos
       </a>
     </li>
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'inventory' %}fw-semibold{% endif %}"
-         href="{% url 'branches:list' %}">
+         href="{% url 'inventory:list' %}">
         <i class="bi bi-archive me-2"></i>Inventario
       </a>
     </li>
