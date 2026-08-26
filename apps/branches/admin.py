@@ -1,11 +1,6 @@
 from django.contrib import admin
 
-from .models import Branch, UserBranch
-
-
-class UserBranchInline(admin.TabularInline):
-    model = UserBranch
-    extra = 0
+from .models import Branch
 
 
 @admin.register(Branch)
@@ -14,5 +9,4 @@ class BranchAdmin(admin.ModelAdmin):
     list_filter = ["is_active"]
     search_fields = ["name", "code"]
     readonly_fields = ["code", "created_at", "updated_at"]
-    inlines = [UserBranchInline]
 

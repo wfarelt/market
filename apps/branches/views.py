@@ -1,17 +1,15 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views.generic import (
     CreateView,
-    DeleteView,
     DetailView,
     ListView,
     UpdateView,
 )
 
-from .forms import BranchForm, UserBranchForm
-from .models import Branch, UserBranch
+from .forms import BranchForm
+from .models import Branch
 
 
 class BranchListView(LoginRequiredMixin, ListView):
@@ -60,49 +58,6 @@ class BranchDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["user_branches"] = self.object.user_branches.select_related("user")
-        ctx["form"] = UserBranchForm(branch=self.object)
+        ctx["users"] = self.object.users.all()
         return ctx
-
-
-class UserBranchAddView(LoginRequiredMixin, CreateView):
-    """Assign a user to a branch from the branch detail page."""
-
-    model = UserBranch
-    form_class = UserBranchForm
-    template_name = "branches/detail.html"  # re-renders detail on error
-
-    def get_branch(self):
-        return get_object_or_404(Branch, pk=self.kwargs["pk"])
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs["branch"] = self.get_branch()
-        return kwargs
-
-    def form_valid(self, form):
-        messages.success(self.request, "Usuario asignado correctamente.")
-        form.save()
-        return redirect("branches:detail", pk=self.kwargs["pk"])
-
-    def form_invalid(self, form):
-        branch = self.get_branch()
-        messages.error(self.request, "Error al asignar usuario.")
-        return self.render_to_response({
-            "branch": branch,
-            "user_branches": branch.user_branches.select_related("user"),
-            "form": form,
-        })
-
-
-class UserBranchRemoveView(LoginRequiredMixin, DeleteView):
-    """Remove a user assignment from a branch (confirmation page)."""
-
-    model = UserBranch
-    template_name = "branches/confirm_remove_user.html"
-    pk_url_kwarg = "user_branch_pk"
-
-    def get_success_url(self):
-        messages.success(self.request, "Acceso revocado correctamente.")
-        return reverse_lazy("branches:detail", kwargs={"pk": self.kwargs["pk"]})
 

@@ -12,6 +12,14 @@
         <i class="bi bi-building me-2"></i>Sucursales
       </a>
     </li>
+    {% if request.user.role == 'superadmin' or request.user.role == 'admin' %}
+    <li class="nav-item">
+      <a class="nav-link text-dark {% if request.resolver_match.app_name == 'users' and request.resolver_match.url_name != 'login' %}fw-semibold{% endif %}"
+         href="{% url 'users:list' %}">
+        <i class="bi bi-people me-2"></i>Usuarios
+      </a>
+    </li>
+    {% endif %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'products' %}fw-semibold{% endif %}"
          href="{% url 'branches:list' %}">

@@ -60,21 +60,11 @@
               </tr>
             </thead>
             <tbody>
-              {% for ub in user_branches %}
+              {% for user in users %}
               <tr>
-                <td>{{ ub.user.get_full_name|default:ub.user.username }}</td>
-                <td>{{ ub.get_role_display }}</td>
-                <td>
-                  {% if ub.is_default %}
-                    <i class="bi bi-check-circle-fill text-success"></i>
-                  {% endif %}
-                </td>
-                <td class="text-end">
-                  <a href="{% url 'branches:user-remove' branch.pk ub.pk %}"
-                     class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-person-dash"></i>
-                  </a>
-                </td>
+                <td>{{ user.get_full_name|default:user.username }}</td>
+                <td>{{ user.get_role_display }}</td>
+                <td colspan="2" class="text-end text-muted small">Gestionar desde Usuarios</td>
               </tr>
               {% empty %}
               <tr>
@@ -84,36 +74,6 @@
             </tbody>
           </table>
         </div>
-
-        <!-- Assign user form -->
-        <h6 class="fw-semibold mb-3">Asignar usuario</h6>
-        <form method="post" action="{% url 'branches:user-add' branch.pk %}" novalidate>
-          {% csrf_token %}
-          <div class="row g-2 align-items-end">
-            <div class="col-md-5">
-              <label class="form-label small">Usuario</label>
-              {{ form.user }}
-              {% if form.user.errors %}
-                <div class="invalid-feedback d-block">{{ form.user.errors|join:", " }}</div>
-              {% endif %}
-            </div>
-            <div class="col-md-4">
-              <label class="form-label small">Rol</label>
-              {{ form.role }}
-            </div>
-            <div class="col-md-2">
-              <div class="form-check mb-2">
-                {{ form.is_default }}
-                <label class="form-check-label small" for="{{ form.is_default.id_for_label }}">Default</label>
-              </div>
-            </div>
-            <div class="col-md-1">
-              <button type="submit" class="btn btn-primary btn-sm w-100">
-                <i class="bi bi-plus-lg"></i>
-              </button>
-            </div>
-          </div>
-        </form>
       </div>
     </div>
   </div>
