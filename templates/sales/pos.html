@@ -1,6 +1,55 @@
 {% extends "base.html" %}
 {% block title %}Punto de venta{% endblock %}
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-3"><h5 class="mb-0 fw-semibold">Punto de venta</h5><span class="text-muted small">{{ request.user.branch }}</span></div>
-<div class="row g-4"><div class="col-lg-7"><div class="card border-0 shadow-sm"><div class="card-body p-3"><form method="get"><div class="input-group"><input autofocus name="q" value="{{ query }}" class="form-control" placeholder="Buscar por nombre o código"><button class="btn btn-outline-secondary"><i class="bi bi-search"></i></button></div></form><div class="list-group list-group-flush mt-3">{% for product in products %}<div class="list-group-item d-flex justify-content-between align-items-center"><div><strong>{{ product.name }}</strong><small class="d-block text-muted">{{ product.sku }} · {{ product.list_price }}</small></div><form method="post" action="{% url 'sales:add-item' product.pk %}">{% csrf_token %}<input type="hidden" name="q" value="{{ query }}"><button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i></button></form></div>{% empty %}{% if query %}<p class="text-muted mb-0">Sin productos encontrados.</p>{% endif %}{% endfor %}</div></div></div></div><div class="col-lg-5"><div class="card border-0 shadow-sm"><div class="card-body p-3"><h6 class="fw-semibold">Carrito</h6>{% for item in sale.items.all %}<div class="d-flex align-items-center justify-content-between border-bottom py-2"><div><strong>{{ item.product.name }}</strong><small class="d-block text-muted">{{ item.unit_price }} c/u</small></div><form method="post" action="{% url 'sales:update-item' item.pk %}" class="d-flex gap-1">{% csrf_token %}<input name="quantity" type="number" min="0" step="0.01" value="{{ item.quantity }}" class="form-control form-control-sm" style="width:80px"><button class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-repeat"></i></button></form><span class="font-monospace">{{ item.subtotal }}</span></div>{% empty %}<p class="text-muted">Agrega productos al carrito.</p>{% endfor %}<div class="mt-3"><div class="d-flex justify-content-between"><span>Subtotal</span><strong>{{ sale.subtotal }}</strong></div><div class="d-flex justify-content-between"><span>Descuento</span><strong>{{ sale.discount_amount }}</strong></div><div class="d-flex justify-content-between fs-5 mt-2"><strong>Total</strong><strong class="font-monospace">{{ sale.total }}</strong></div></div><form method="post" action="{% url 'sales:checkout' %}" class="mt-3">{% csrf_token %}{% for field in checkout_form %}<div class="mb-2"><label class="form-label small">{{ field.label }}</label>{{ field }}</div>{% endfor %}<button class="btn btn-primary w-100">Cobrar</button></form></div></div></div></div>
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h5 class="mb-0 fw-semibold">Punto de venta</h5><span class="text-muted small">{{ request.user.branch }}</span>
+</div>
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3">
+                <form method="get">
+                    <div class="input-group"><input autofocus name="q" value="{{ query }}" class="form-control"
+                            placeholder="Buscar por nombre o código"><button class="btn btn-outline-secondary"><i
+                                class="bi bi-search"></i></button></div>
+                </form>
+                <div class="list-group list-group-flush mt-3">{% for product in products %}<div
+                        class="list-group-item d-flex justify-content-between align-items-center">
+                        <div><strong>{{ product.name }}</strong><small class="d-block text-muted">{{ product.sku }} · {{
+                                product.list_price }}</small></div>
+                        <form method="post" action="{% url 'sales:add-item' product.pk %}">{% csrf_token %}<input
+                                type="hidden" name="q" value="{{ query }}"><button class="btn btn-sm btn-primary"><i
+                                    class="bi bi-plus-lg"></i></button></form>
+                    </div>{% empty %}{% if query %}<p class="text-muted mb-0">Sin productos encontrados.</p>{% endif
+                    %}{% endfor %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3">
+                <h6 class="fw-semibold">Carrito</h6>{% for item in sale.items.all %}<div
+                    class="d-flex align-items-center justify-content-between border-bottom py-2">
+                    <div><strong>{{ item.product.name }}</strong><small class="d-block text-muted">{{ item.unit_price }}
+                            c/u</small></div>
+                    <form method="post" action="{% url 'sales:update-item' item.pk %}" class="d-flex gap-1">{%
+                        csrf_token %}<input name="quantity" type="number" min="0" step="0.01"
+                            value="{{ item.quantity }}" class="form-control form-control-sm" style="width:80px"><button
+                            class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-repeat"></i></button></form>
+                    <span class="font-monospace">{{ item.subtotal }}</span>
+                </div>{% empty %}<p class="text-muted">Agrega productos al carrito.</p>{% endfor %}<div class="mt-3">
+                    <div class="d-flex justify-content-between"><span>Subtotal</span><strong>{{ sale.subtotal
+                            }}</strong></div>
+                    <div class="d-flex justify-content-between"><span>Descuento</span><strong>{{ sale.discount_amount
+                            }}</strong></div>
+                    <div class="d-flex justify-content-between fs-5 mt-2"><strong>Total</strong><strong
+                            class="font-monospace">{{ sale.total }}</strong></div>
+                </div>
+                <form method="post" action="{% url 'sales:checkout' %}" class="mt-3">{% csrf_token %}{% for field in
+                    checkout_form %}<div class="mb-2"><label class="form-label small">{{ field.label }}</label>{{ field
+                        }}</div>{% endfor %}<button class="btn btn-primary w-100">Cobrar</button></form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
