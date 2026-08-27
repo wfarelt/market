@@ -4,46 +4,156 @@
 
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-4">
-    <h5 class="mb-0 fw-semibold">Caja</h5>
+  <div>
+    <h5 class="mb-0 fw-semibold">Control de Caja</h5>
+    <span class="text-muted small">Aperturas, cierres, gastos y balance de caja</span>
+  </div>
+  <div class="d-flex gap-2">
     {% if open_register %}
-    <a href="{% url 'cash:expense-create' open_register.pk %}" class="btn btn-outline-secondary btn-sm">Registrar
-        gasto</a>
-    <a href="{% url 'cash:close' open_register.pk %}" class="btn btn-danger btn-sm">Cerrar caja</a>
+    <a href="{% url 'cash:expense-create' open_register.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-dash-circle me-1"></i>Registrar Gasto
+    </a>
+    <a href="{% url 'cash:close' open_register.pk %}" class="btn btn-danger btn-sm">
+      <i class="bi bi-box-arrow-right me-1"></i>Cerrar Caja
+    </a>
     {% else %}
-    <a href="{% url 'cash:open' %}" class="btn btn-primary btn-sm">Abrir caja</a>
+    <a href="{% url 'cash:open' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-door-open me-1"></i>Abrir Caja
+    </a>
     {% endif %}
+  </div>
 </div>
-<div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Usuario</th>
-                        <th>Sucursal</th>
-                        <th>Apertura</th>
-                        <th>Cierre</th>
-                        <th>Diferencia</th>
-                        <th>Estado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for cash_register in cash_registers %}<tr>
-                        <td>{{ cash_register.user }}</td>
-                        <td>{{ cash_register.branch }}</td>
-                        <td class="font-monospace">{{ cash_register.opened_at|date:"d/m/Y H:i" }}</td>
-                        <td class="font-monospace">{{ cash_register.closed_at|date:"d/m/Y H:i"|default:"-" }}</td>
-                        <td class="font-monospace">{{ cash_register.difference|default:"-" }}</td>
-                        <td>{% if cash_register.status == 'OPEN' %}<span
-                                class="badge rounded-pill bg-success">Abierta</span>{% else %}<span
-                                class="badge rounded-pill bg-secondary">Cerrada</span>{% endif %}</td>
-                    </tr>
-                    {% empty %}<tr>
-                        <td colspan="6" class="text-center text-muted py-4">No hay sesiones de caja.</td>
-                    </tr>{% endfor %}
-                </tbody>
-            </table>
-        </div>
+
+{% if open_register %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <div>
+      <h6 class="fw-semibold mb-0">Resumen de Caja Activa #{{ open_register.pk }}</h6>
+      <span class="text-muted small">Abierta el {{ open_register.opened_at|date:"d/m/Y H:i" }} por {{ open_register.user.username }} ({{ open_register.branch.name }})</span>
     </div>
+    <span class="badge bg-success">Abierta</span>
+  </div>
+  <div class="card-body p-3">
+    <div class="row g-3 text-center">
+      <div class="col-sm-6 col-md">
+        <div class="p-2 border rounded bg-light">
+          <span class="text-muted small d-block">Saldo Inicial</span>
+          <strong class="font-monospace h6 mb-0">{{ open_register.opening_amount }}</strong>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md">
+        <div class="p-2 border rounded bg-light">
+          <span class="text-muted small d-block">Ventas (Efectivo)</span>
+          <strong class="font-monospace h6 mb-0 text-success">+{{ open_register.total_sales }}</strong>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md">
+        <div class="p-2 border rounded bg-light">
+          <span class="text-muted small d-block">Cobros de Crédito</span>
+          <strong class="font-monospace h6 mb-0 text-info">+{{ open_register.total_credit_collections }}</strong>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md">
+        <div class="p-2 border rounded bg-light">
+          <span class="text-muted small d-block">Gastos / Egresos</span>
+          <strong class="font-monospace h6 mb-0 text-danger">-{{ open_register.total_expenses }}</strong>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md">
+        <div class="p-2 border rounded bg-primary text-white">
+          <span class="small d-block text-white-50">Saldo Estimado Actual</span>
+          <strong class="font-monospace h6 mb-0">{{ open_register.current_balance }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 border-0">
+    <h6 class="fw-semibold mb-0">Historial de Sesiones de Caja</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>N°</th>
+          <th>Usuario</th>
+          <th>Sucursal</th>
+          <th>Apertura</th>
+          <th>Saldo Inicial</th>
+          <th>Ventas</th>
+          <th>Cobros Crédito</th>
+          <th>Gastos</th>
+          <th>Saldo Cierre / Esperado</th>
+          <th>Diferencia</th>
+          <th>Estado</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cash_register in cash_registers %}
+        <tr>
+          <td class="font-monospace fw-semibold">
+            <a href="{% url 'cash:detail' cash_register.pk %}" class="text-decoration-none">#{{ cash_register.pk }}</a>
+          </td>
+          <td>{{ cash_register.user.username }}</td>
+          <td>{{ cash_register.branch.name }}</td>
+          <td class="font-monospace small">{{ cash_register.opened_at|date:"d/m/Y H:i" }}</td>
+          <td class="font-monospace">{{ cash_register.opening_amount }}</td>
+          <td class="font-monospace text-success">+{{ cash_register.total_sales }}</td>
+          <td class="font-monospace text-info">+{{ cash_register.total_credit_collections }}</td>
+          <td class="font-monospace text-danger">-{{ cash_register.total_expenses }}</td>
+          <td class="font-monospace fw-semibold">
+            {% if cash_register.status == 'CLOSED' %}
+              {{ cash_register.closing_amount }}
+              <small class="text-muted d-block font-monospace">Esp: {{ cash_register.expected_amount }}</small>
+            {% else %}
+              <span class="text-primary">{{ cash_register.current_balance }}</span>
+            {% endif %}
+          </td>
+          <td class="font-monospace">
+            {% if cash_register.status == 'CLOSED' %}
+              {% if cash_register.difference > 0 %}
+                <span class="text-success">+{{ cash_register.difference }}</span>
+              {% elif cash_register.difference < 0 %}
+                <span class="text-danger">{{ cash_register.difference }}</span>
+              {% else %}
+                <span class="text-muted">0.00</span>
+              {% endif %}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>
+            {% if cash_register.status == 'OPEN' %}
+            <span class="badge rounded-pill bg-success">Abierta</span>
+            {% else %}
+            <span class="badge rounded-pill bg-secondary">Cerrada</span>
+            {% endif %}
+          </td>
+          <td class="text-end gap-1">
+            <a href="{% url 'cash:detail' cash_register.pk %}" class="btn btn-sm btn-outline-secondary" title="Ver detalle de movimientos">
+              <i class="bi bi-eye"></i>
+            </a>
+            {% if cash_register.status == 'OPEN' and cash_register.user == request.user %}
+            <a href="{% url 'cash:expense-create' cash_register.pk %}" class="btn btn-sm btn-outline-danger" title="Registrar Gasto">
+              <i class="bi bi-dash-circle"></i>
+            </a>
+            <a href="{% url 'cash:close' cash_register.pk %}" class="btn btn-sm btn-danger" title="Cerrar Caja">
+              <i class="bi bi-box-arrow-right"></i>
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="12" class="text-center text-muted py-4">No se encontraron sesiones de caja.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}

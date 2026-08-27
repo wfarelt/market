@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -30,6 +32,45 @@ class CashRegister(TimeStampedModel):
 
 	def __str__(self):
 		return f"Caja #{self.pk} - {self.user} ({self.branch.code})"
+
+	@property
+	def total_sales(self):
+		from django.db.models import Sum
+		return self.movements.filter(movement_type=CashMovement.TYPE_SALE).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+	@property
+	def total_credit_collections(self):
+		from django.db.models import Sum
+		return self.movements.filter(movement_type=CashMovement.TYPE_CREDIT_COLLECTION).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+	@property
+	def total_expenses(self):
+		from django.db.models import Sum
+		expense_types = [
+			CashMovement.TYPE_PETTY_CASH_EXPENSE,
+			CashMovement.TYPE_SMALL_PURCHASE,
+			CashMovement.TYPE_TRAVEL_EXPENSE,
+			CashMovement.TYPE_REFUND,
+		]
+		return self.movements.filter(movement_type__in=expense_types).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+	@property
+	def current_balance(self):
+		from django.db.models import Sum
+		income_types = [
+			CashMovement.TYPE_OPENING,
+			CashMovement.TYPE_SALE,
+			CashMovement.TYPE_CREDIT_COLLECTION,
+		]
+		expense_types = [
+			CashMovement.TYPE_PETTY_CASH_EXPENSE,
+			CashMovement.TYPE_SMALL_PURCHASE,
+			CashMovement.TYPE_TRAVEL_EXPENSE,
+			CashMovement.TYPE_REFUND,
+		]
+		incomes = self.movements.filter(movement_type__in=income_types).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+		expenses = self.movements.filter(movement_type__in=expense_types).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+		return incomes - expenses
 
 
 class CashMovement(TimeStampedModel):

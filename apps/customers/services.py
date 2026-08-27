@@ -12,7 +12,7 @@ from .validators import (
 
 
 @transaction.atomic
-def create_customer(*, first_name, last_name, id_document, tax_id="", phone="", address="", email="", user):
+def create_customer(*, first_name, last_name, id_document, tax_id="", phone="", address="", email="", is_active=True, user):
 	validate_customer_id_document(id_document)
 	customer = Customer.objects.create(
 		first_name=first_name.strip(),
@@ -22,6 +22,7 @@ def create_customer(*, first_name, last_name, id_document, tax_id="", phone="", 
 		phone=phone.strip(),
 		address=address.strip(),
 		email=email.strip(),
+		is_active=is_active,
 		created_by=user,
 	)
 	return customer

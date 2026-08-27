@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
-from django.views.generic import FormView, ListView
+from django.views.generic import DetailView, FormView, ListView
 
 from apps.users.models import User
 
@@ -78,6 +78,7 @@ class CashRegisterCloseView(CashAccessMixin, FormView):
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		context["title"] = f"Cerrar caja #{self.cash_register.pk}"
+		context["cash_register"] = self.cash_register
 		return context
 
 
@@ -102,5 +103,25 @@ class PettyCashExpenseCreateView(CashAccessMixin, FormView):
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		context["title"] = "Registrar gasto de caja"
+		context["cash_register"] = self.cash_register
+		return context
+
+
+class CashRegisterDetailView(CashAccessMixin, DetailView):
+	model = CashRegister
+	template_name = "cash/detail.html"
+	context_object_name = "cash_register"
+
+	def get_queryset(self):
+		queryset = CashRegister.objects.select_related("user", "branch").prefetch_related("movements")
+		if self.request.user.role == User.ROLE_ADMIN:
+			return queryset.filter(branch=self.request.user.branch)
+		elif self.request.user.role == User.ROLE_SUPERADMIN:
+			return queryset
+		return queryset.filter(user=self.request.user)
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context["movements"] = self.object.movements.all()
 		return context
 
