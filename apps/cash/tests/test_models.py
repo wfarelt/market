@@ -36,6 +36,26 @@ class CashRegisterServiceTests(TestCase):
 			[CashMovement.TYPE_CLOSING, CashMovement.TYPE_PETTY_CASH_EXPENSE, CashMovement.TYPE_OPENING],
 		)
 
+	def test_petty_cash_expenses_cannot_exceed_opening_amount(self):
+		cash_register = open_cash_register(user=self.user, opening_amount=Decimal("100.00"))
+		register_petty_cash_expense(
+			cash_register=cash_register,
+			category=self.category,
+			concept="Taxi 1",
+			amount=Decimal("60.00"),
+			user=self.user,
+		)
+		self.assertEqual(cash_register.remaining_petty_cash, Decimal("40.00"))
+
+		with self.assertRaises(ValidationError):
+			register_petty_cash_expense(
+				cash_register=cash_register,
+				category=self.category,
+				concept="Taxi 2",
+				amount=Decimal("50.00"),
+				user=self.user,
+			)
+
 	def test_cashier_can_open_cash_from_the_web_flow(self):
 		self.client.force_login(self.user)
 

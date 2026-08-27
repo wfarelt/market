@@ -49,31 +49,32 @@
         <div class="row g-3 text-center">
           <div class="col-6 col-sm-4">
             <div class="p-2 border rounded bg-light">
-              <span class="text-muted small d-block">Saldo Inicial</span>
+              <span class="text-muted small d-block">Saldo Inicial (Caja Chica)</span>
               <strong class="font-monospace text-dark">{{ cash_register.opening_amount }}</strong>
             </div>
           </div>
           <div class="col-6 col-sm-4">
             <div class="p-2 border rounded bg-light">
-              <span class="text-muted small d-block">Ventas (Efectivo)</span>
-              <strong class="font-monospace text-success">+{{ cash_register.total_sales }}</strong>
-            </div>
-          </div>
-          <div class="col-6 col-sm-4">
-            <div class="p-2 border rounded bg-light">
-              <span class="text-muted small d-block">Cobros Crédito</span>
-              <strong class="font-monospace text-info">+{{ cash_register.total_credit_collections }}</strong>
-            </div>
-          </div>
-          <div class="col-6 col-sm-4">
-            <div class="p-2 border rounded bg-light">
-              <span class="text-muted small d-block">Gastos / Egresos</span>
+              <span class="text-muted small d-block">Gastos de Caja</span>
               <strong class="font-monospace text-danger">-{{ cash_register.total_expenses }}</strong>
             </div>
           </div>
           <div class="col-6 col-sm-4">
+            <div class="p-2 border rounded bg-light border-warning">
+              <span class="text-muted small d-block">Remanente Chica (Sig. Caja)</span>
+              <strong class="font-monospace text-warning-emphasis">{{ cash_register.remaining_petty_cash }}</strong>
+            </div>
+          </div>
+          <div class="col-6 col-sm-4">
             <div class="p-2 border rounded bg-light">
-              <span class="text-muted small d-block">Monto Esperado</span>
+              <span class="text-muted small d-block">Ingresos Efectivo</span>
+              <strong class="font-monospace text-success">+{{ cash_register.total_cash_income }}</strong>
+              <small class="d-block text-muted" style="font-size:0.75rem;">(Vtas: {{ cash_register.total_sales }} · Cobros: {{ cash_register.total_credit_collections }})</small>
+            </div>
+          </div>
+          <div class="col-6 col-sm-4">
+            <div class="p-2 border rounded bg-light">
+              <span class="text-muted small d-block">Monto Esperado en Caja</span>
               <strong class="font-monospace text-primary">
                 {% if cash_register.status == 'CLOSED' %}{{ cash_register.expected_amount }}{% else %}{{ cash_register.current_balance }}{% endif %}
               </strong>

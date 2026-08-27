@@ -42,6 +42,16 @@ class CashRegisterOpenView(CashAccessMixin, FormView):
 	template_name = "cash/form.html"
 	success_url = reverse_lazy("cash:list")
 
+	def get_last_closed_register(self):
+		return CashRegister.objects.filter(user=self.request.user, status=CashRegister.STATUS_CLOSED).order_by("-closed_at").first()
+
+	def get_initial(self):
+		initial = super().get_initial()
+		last_register = self.get_last_closed_register()
+		if last_register:
+			initial["opening_amount"] = last_register.remaining_petty_cash
+		return initial
+
 	def form_valid(self, form):
 		try:
 			open_cash_register(user=self.request.user, **form.cleaned_data)
@@ -54,6 +64,10 @@ class CashRegisterOpenView(CashAccessMixin, FormView):
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		context["title"] = "Abrir caja"
+		last_register = self.get_last_closed_register()
+		if last_register:
+			context["last_closed_register"] = last_register
+			context["suggested_opening_amount"] = last_register.remaining_petty_cash
 		return context
 
 

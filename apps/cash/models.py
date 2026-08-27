@@ -55,22 +55,16 @@ class CashRegister(TimeStampedModel):
 		return self.movements.filter(movement_type__in=expense_types).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
 	@property
+	def remaining_petty_cash(self):
+		return max(Decimal("0.00"), self.opening_amount - self.total_expenses)
+
+	@property
+	def total_cash_income(self):
+		return self.total_sales + self.total_credit_collections
+
+	@property
 	def current_balance(self):
-		from django.db.models import Sum
-		income_types = [
-			CashMovement.TYPE_OPENING,
-			CashMovement.TYPE_SALE,
-			CashMovement.TYPE_CREDIT_COLLECTION,
-		]
-		expense_types = [
-			CashMovement.TYPE_PETTY_CASH_EXPENSE,
-			CashMovement.TYPE_SMALL_PURCHASE,
-			CashMovement.TYPE_TRAVEL_EXPENSE,
-			CashMovement.TYPE_REFUND,
-		]
-		incomes = self.movements.filter(movement_type__in=income_types).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-		expenses = self.movements.filter(movement_type__in=expense_types).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-		return incomes - expenses
+		return self.remaining_petty_cash + self.total_cash_income
 
 
 class CashMovement(TimeStampedModel):

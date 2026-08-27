@@ -34,29 +34,30 @@
     <span class="badge bg-success">Abierta</span>
   </div>
   <div class="card-body p-3">
-    <div class="row g-3 text-center">
+    <div class="row g-2 text-center">
       <div class="col-sm-6 col-md">
         <div class="p-2 border rounded bg-light">
-          <span class="text-muted small d-block">Saldo Inicial</span>
+          <span class="text-muted small d-block">Saldo Inicial (Caja Chica)</span>
           <strong class="font-monospace h6 mb-0">{{ open_register.opening_amount }}</strong>
         </div>
       </div>
       <div class="col-sm-6 col-md">
         <div class="p-2 border rounded bg-light">
-          <span class="text-muted small d-block">Ventas (Efectivo)</span>
-          <strong class="font-monospace h6 mb-0 text-success">+{{ open_register.total_sales }}</strong>
-        </div>
-      </div>
-      <div class="col-sm-6 col-md">
-        <div class="p-2 border rounded bg-light">
-          <span class="text-muted small d-block">Cobros de Crédito</span>
-          <strong class="font-monospace h6 mb-0 text-info">+{{ open_register.total_credit_collections }}</strong>
-        </div>
-      </div>
-      <div class="col-sm-6 col-md">
-        <div class="p-2 border rounded bg-light">
-          <span class="text-muted small d-block">Gastos / Egresos</span>
+          <span class="text-muted small d-block">Gastos de Caja</span>
           <strong class="font-monospace h6 mb-0 text-danger">-{{ open_register.total_expenses }}</strong>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md">
+        <div class="p-2 border rounded bg-light border-warning">
+          <span class="text-muted small d-block">Remanente (Sig. Caja)</span>
+          <strong class="font-monospace h6 mb-0 text-warning-emphasis">{{ open_register.remaining_petty_cash }}</strong>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md">
+        <div class="p-2 border rounded bg-light">
+          <span class="text-muted small d-block">Ingresos Efectivo</span>
+          <strong class="font-monospace h6 mb-0 text-success">+{{ open_register.total_cash_income }}</strong>
+          <small class="d-block text-muted" style="font-size: 0.75rem;">(Ventas: {{ open_register.total_sales }} · Cobros: {{ open_register.total_credit_collections }})</small>
         </div>
       </div>
       <div class="col-sm-6 col-md">
@@ -83,9 +84,9 @@
           <th>Sucursal</th>
           <th>Apertura</th>
           <th>Saldo Inicial</th>
-          <th>Ventas</th>
-          <th>Cobros Crédito</th>
           <th>Gastos</th>
+          <th>Remanente Chica</th>
+          <th>Ingresos Ef.</th>
           <th>Saldo Cierre / Esperado</th>
           <th>Diferencia</th>
           <th>Estado</th>
@@ -102,9 +103,9 @@
           <td>{{ cash_register.branch.name }}</td>
           <td class="font-monospace small">{{ cash_register.opened_at|date:"d/m/Y H:i" }}</td>
           <td class="font-monospace">{{ cash_register.opening_amount }}</td>
-          <td class="font-monospace text-success">+{{ cash_register.total_sales }}</td>
-          <td class="font-monospace text-info">+{{ cash_register.total_credit_collections }}</td>
           <td class="font-monospace text-danger">-{{ cash_register.total_expenses }}</td>
+          <td class="font-monospace fw-semibold text-warning-emphasis">{{ cash_register.remaining_petty_cash }}</td>
+          <td class="font-monospace text-success">+{{ cash_register.total_cash_income }}</td>
           <td class="font-monospace fw-semibold">
             {% if cash_register.status == 'CLOSED' %}
               {{ cash_register.closing_amount }}

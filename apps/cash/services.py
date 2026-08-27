@@ -45,6 +45,12 @@ def register_petty_cash_expense(*, cash_register, category, concept, amount, use
 	cash_register = CashRegister.objects.select_for_update().get(pk=cash_register.pk)
 	if cash_register.status != CashRegister.STATUS_OPEN:
 		raise ValidationError("La caja está cerrada.")
+	current_expenses = cash_register.total_expenses
+	if current_expenses + amount > cash_register.opening_amount:
+		remaining = cash_register.remaining_petty_cash
+		raise ValidationError(
+			f"La suma de gastos ({current_expenses + amount} Bs) no puede superar el saldo inicial de caja chica ({cash_register.opening_amount} Bs). Saldo disponible para gastos: {remaining} Bs."
+		)
 	movement = CashMovement.objects.create(cash_register=cash_register, movement_type=movement_type, amount=amount, description=concept, created_by=user)
 	return PettyCashExpense.objects.create(cash_register=cash_register, category=category, concept=concept, amount=amount, user=user, movement=movement, created_by=user)
 
