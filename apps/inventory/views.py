@@ -26,6 +26,7 @@ class StockListView(StockAccessMixin, ListView):
 	model = Stock
 	template_name = "inventory/list.html"
 	context_object_name = "stocks"
+	paginate_by = 20
 	queryset = Stock.objects.select_related("product", "branch", "product__unit_measure")
 
 	def get_queryset(self):
@@ -57,6 +58,7 @@ class InventoryMovementListView(StockAccessMixin, ListView):
 	model = InventoryMovement
 	template_name = "inventory/movement_list.html"
 	context_object_name = "movements"
+	paginate_by = 20
 	queryset = InventoryMovement.objects.select_related("branch", "created_by")
 
 

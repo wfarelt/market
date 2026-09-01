@@ -22,6 +22,7 @@ class UserListView(UserManagementAccessMixin, ListView):
 	model = User
 	template_name = "users/list.html"
 	context_object_name = "users"
+	paginate_by = 20
 
 	def get_queryset(self):
 		queryset = User.objects.select_related("branch").order_by("username")

@@ -12,5 +12,5 @@
     {% for item in items %}<tr><td class="font-monospace">{{ item.code }}</td><td>{{ item.name }}</td><td>{% if item.is_active %}<span class="badge rounded-pill bg-success">Activo</span>{% else %}<span class="badge rounded-pill bg-secondary">Inactivo</span>{% endif %}</td><td class="text-end"><a href="{% url update_url_name item.pk %}" class="btn btn-sm btn-outline-secondary" aria-label="Editar"><i class="bi bi-pencil"></i></a><a href="{% url delete_url_name item.pk %}" class="btn btn-sm btn-outline-danger" aria-label="Eliminar"><i class="bi bi-trash"></i></a></td></tr>
     {% empty %}<tr><td colspan="4" class="text-center text-muted py-4">No hay registros.</td></tr>{% endfor %}
   </tbody></table>
-</div></div></div>
+</div>{% include "partials/_pagination.html" %}</div></div>
 {% endblock %}

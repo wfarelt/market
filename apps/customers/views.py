@@ -20,6 +20,7 @@ class CustomerListView(CustomerReadPaymentAccessMixin, ListView):
 	model = Customer
 	template_name = "customers/customer_list.html"
 	context_object_name = "customers"
+	paginate_by = 20
 
 	def get_queryset(self):
 		query = self.request.GET.get("q", "").strip()
@@ -104,6 +105,7 @@ class CreditListView(CustomerReadPaymentAccessMixin, ListView):
 	model = Credit
 	template_name = "customers/credit_list.html"
 	context_object_name = "credits"
+	paginate_by = 20
 
 	def get_queryset(self):
 		filters = {

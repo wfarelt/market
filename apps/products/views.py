@@ -17,6 +17,7 @@ class CatalogAccessMixin(LoginRequiredMixin, UserPassesTestMixin):
 class CatalogListView(CatalogAccessMixin, ListView):
 	template_name = "products/catalog_list.html"
 	context_object_name = "items"
+	paginate_by = 20
 	title = ""
 	create_url_name = ""
 	update_url_name = ""
@@ -164,6 +165,7 @@ class ProductListView(CatalogAccessMixin, ListView):
 	model = Product
 	template_name = "products/list.html"
 	context_object_name = "products"
+	paginate_by = 20
 	queryset = Product.objects.select_related("category", "brand", "unit_measure")
 
 

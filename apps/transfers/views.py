@@ -24,6 +24,7 @@ class TransferAccessMixin(LoginRequiredMixin):
 
 class TransferListView(TransferAccessMixin, ListView):
 	model = Transfer; template_name = "transfers/list.html"; context_object_name = "transfers"
+	paginate_by = 20
 	def get_queryset(self):
 		qs = Transfer.objects.select_related("origin_branch", "destination_branch", "created_by")
 		user = self.request.user

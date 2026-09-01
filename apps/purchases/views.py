@@ -14,6 +14,7 @@ class PurchaseListView(PurchaseAccessMixin, ListView):
 	model = Purchase
 	template_name = "purchases/list.html"
 	context_object_name = "purchases"
+	paginate_by = 20
 
 	def get_queryset(self):
 		return get_purchases_for_user(self.request.user, query=self.request.GET.get("q", "").strip(), status=self.request.GET.get("status", ""))

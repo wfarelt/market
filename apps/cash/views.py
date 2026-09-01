@@ -24,6 +24,7 @@ class CashRegisterListView(CashAccessMixin, ListView):
 	model = CashRegister
 	template_name = "cash/list.html"
 	context_object_name = "cash_registers"
+	paginate_by = 20
 
 	def get_queryset(self):
 		queryset = CashRegister.objects.select_related("user", "branch")

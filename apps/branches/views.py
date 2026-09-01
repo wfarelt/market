@@ -22,6 +22,7 @@ class BranchListView(BranchAccessMixin, ListView):
     model = Branch
     template_name = "branches/list.html"
     context_object_name = "branches"
+    paginate_by = 20
 
 
 class BranchCreateView(BranchAccessMixin, CreateView):
