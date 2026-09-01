@@ -9,6 +9,11 @@
     <span class="text-muted small">Aperturas, cierres, gastos y balance de caja</span>
   </div>
   <div class="d-flex gap-2">
+    {% if request.user.role == 'superadmin' or request.user.role == 'admin' %}
+    <a href="{% url 'cash:category-list' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-tags me-1"></i>Categorías
+    </a>
+    {% endif %}
     {% if open_register %}
     <a href="{% url 'cash:expense-create' open_register.pk %}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-dash-circle me-1"></i>Registrar Gasto

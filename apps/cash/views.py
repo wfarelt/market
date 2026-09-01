@@ -4,18 +4,25 @@ from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
-from django.views.generic import DetailView, FormView, ListView
+from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
 from apps.users.models import User
 
-from .forms import CashRegisterCloseForm, CashRegisterOpenForm, PettyCashExpenseForm
-from .models import CashRegister
+from .forms import CashRegisterCloseForm, CashRegisterOpenForm, ExpenseCategoryForm, PettyCashExpenseForm
+from .models import CashRegister, ExpenseCategory
 from .services import close_cash_register, open_cash_register, register_petty_cash_expense
 
 
 class CashAccessMixin(LoginRequiredMixin):
 	def dispatch(self, request, *args, **kwargs):
 		if request.user.role not in {User.ROLE_ADMIN, User.ROLE_CAJERO, User.ROLE_ALMACENERO}:
+			raise Http404
+		return super().dispatch(request, *args, **kwargs)
+
+
+class ExpenseCategoryAccessMixin(CashAccessMixin):
+	def dispatch(self, request, *args, **kwargs):
+		if request.user.role not in {User.ROLE_SUPERADMIN, User.ROLE_ADMIN}:
 			raise Http404
 		return super().dispatch(request, *args, **kwargs)
 
@@ -35,6 +42,46 @@ class CashRegisterListView(CashAccessMixin, ListView):
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		context["open_register"] = CashRegister.objects.filter(user=self.request.user, status=CashRegister.STATUS_OPEN).first()
+		return context
+
+
+class ExpenseCategoryListView(ExpenseCategoryAccessMixin, ListView):
+	model = ExpenseCategory
+	template_name = "cash/category_list.html"
+	context_object_name = "categories"
+	paginate_by = 20
+
+
+class ExpenseCategoryCreateView(ExpenseCategoryAccessMixin, CreateView):
+	model = ExpenseCategory
+	form_class = ExpenseCategoryForm
+	template_name = "cash/category_form.html"
+	success_url = reverse_lazy("cash:category-list")
+
+	def form_valid(self, form):
+		form.instance.created_by = self.request.user
+		messages.success(self.request, "Categoría de gasto creada correctamente.")
+		return super().form_valid(form)
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context["title"] = "Nueva categoría de gasto"
+		return context
+
+
+class ExpenseCategoryUpdateView(ExpenseCategoryAccessMixin, UpdateView):
+	model = ExpenseCategory
+	form_class = ExpenseCategoryForm
+	template_name = "cash/category_form.html"
+	success_url = reverse_lazy("cash:category-list")
+
+	def form_valid(self, form):
+		messages.success(self.request, "Categoría de gasto actualizada correctamente.")
+		return super().form_valid(form)
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context["title"] = "Editar categoría de gasto"
 		return context
 
 

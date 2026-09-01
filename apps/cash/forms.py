@@ -3,6 +3,17 @@ from django import forms
 from .models import ExpenseCategory
 
 
+class ExpenseCategoryForm(forms.ModelForm):
+	class Meta:
+		model = ExpenseCategory
+		fields = ["name", "is_active"]
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.fields["name"].widget.attrs["class"] = "form-control"
+		self.fields["is_active"].widget.attrs["class"] = "form-check-input"
+
+
 class CashRegisterOpenForm(forms.Form):
 	opening_amount = forms.DecimalField(max_digits=12, decimal_places=2, min_value=0, label="Fondo de apertura")
 	notes = forms.CharField(required=False, widget=forms.Textarea, label="Observaciones")

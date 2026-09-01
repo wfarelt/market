@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Categorías de gasto{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h5 class="mb-0 fw-semibold">Categorías de gasto</h5>
+    <span class="text-muted small">Clasificación para gastos de caja chica</span>
+  </div>
+  <a href="{% url 'cash:category-create' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Nueva categoría</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light"><tr><th>Nombre</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+      <tbody>
+        {% for category in categories %}
+        <tr>
+          <td>{{ category.name }}</td>
+          <td>{% if category.is_active %}<span class="badge rounded-pill bg-success">Activa</span>{% else %}<span class="badge rounded-pill bg-secondary">Inactiva</span>{% endif %}</td>
+          <td class="text-end"><a href="{% url 'cash:category-update' category.pk %}" class="btn btn-sm btn-outline-secondary" title="Editar categoría"><i class="bi bi-pencil"></i></a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="text-center text-muted py-4">No hay categorías de gasto registradas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/_pagination.html" %}
+</div>
+{% endblock %}
