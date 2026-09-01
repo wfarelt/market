@@ -2,6 +2,8 @@ from .base import *  # noqa: F401, F403
 
 DEBUG = False
 
+STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
