@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Lista de ventas{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h5 class="mb-0 fw-semibold">Lista de ventas</h5>
+    <span class="text-muted small">Ventas registradas en {{ request.user.branch }}</span>
+  </div>
+  <a href="{% url 'sales:pos' %}" class="btn btn-primary btn-sm"><i class="bi bi-cart3 me-1"></i>Punto de venta</a>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-3">
+    <form method="get" class="row g-2">
+      <div class="col-md-8">
+        <input name="q" value="{{ query }}" class="form-control" placeholder="Buscar por número de venta o cliente">
+      </div>
+      <div class="col-md-2">
+        <select name="status" class="form-select">
+          <option value="">Todos los estados</option>
+          {% for value, label in statuses %}
+          <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-outline-secondary"><i class="bi bi-search me-1"></i>Buscar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Número</th>
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>Método</th>
+          <th class="text-end">Total</th>
+          <th>Estado</th>
+          <th class="text-end">Detalle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sale in sales %}
+        <tr>
+          <td class="font-monospace fw-semibold">{{ sale.number }}</td>
+          <td class="small">{{ sale.completed_at|date:"d/m/Y H:i" }}</td>
+          <td>{{ sale.customer|default:"Consumidor final" }}</td>
+          <td>{{ sale.get_payment_method_display }}</td>
+          <td class="text-end font-monospace fw-semibold">{{ sale.total }} Bs</td>
+          <td>
+            {% if sale.status == 'COMPLETED' %}
+            <span class="badge rounded-pill bg-success">Completada</span>
+            {% else %}
+            <span class="badge rounded-pill bg-secondary">Anulada</span>
+            {% endif %}
+          </td>
+          <td class="text-end"><a href="{% url 'sales:detail' sale.pk %}" class="btn btn-sm btn-outline-secondary" title="Ver venta"><i class="bi bi-eye"></i></a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">No se encontraron ventas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

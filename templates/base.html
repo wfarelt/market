@@ -12,7 +12,9 @@
 </head>
 <body class="bg-body-tertiary">
 
+  {% block topbar %}
   {% include "partials/_topbar.html" %}
+  {% endblock %}
 
   <div class="d-flex" style="min-height: calc(100vh - 56px);">
     {% include "partials/_sidebar.html" %}

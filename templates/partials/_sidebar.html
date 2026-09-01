@@ -54,9 +54,15 @@
     </li>
     {% if request.user.role != 'almacenero' %}
     <li class="nav-item">
-      <a class="nav-link text-dark {% if request.resolver_match.app_name == 'sales' %}fw-semibold{% endif %}"
+      <a class="nav-link text-dark {% if request.resolver_match.app_name == 'sales' and request.resolver_match.url_name == 'pos' %}fw-semibold{% endif %}"
          href="{% url 'sales:pos' %}">
-        <i class="bi bi-receipt me-2"></i>Ventas
+        <i class="bi bi-cart3 me-2"></i>Punto de venta
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-dark {% if request.resolver_match.app_name == 'sales' and request.resolver_match.url_name != 'pos' %}fw-semibold{% endif %}"
+         href="{% url 'sales:list' %}">
+        <i class="bi bi-receipt me-2"></i>Lista de ventas
       </a>
     </li>
     {% endif %}
@@ -69,7 +75,7 @@
     {% if request.user.role == 'superadmin' or request.user.role == 'admin' %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'purchases' %}fw-semibold{% endif %}"
-         href="{% url 'branches:list' %}">
+         href="{% url 'purchases:list' %}">
         <i class="bi bi-truck me-2"></i>Compras
       </a>
     </li>

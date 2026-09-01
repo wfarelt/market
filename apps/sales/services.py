@@ -51,6 +51,17 @@ def add_sale_item(*, sale, product, quantity, user):
 
 
 @transaction.atomic
+def clear_sale_items(*, sale, user):
+	sale = Sale.objects.select_for_update().get(pk=sale.pk)
+	if sale.status != Sale.STATUS_DRAFT:
+		raise ValidationError("Solo se pueden modificar ventas en borrador.")
+	if sale.user_id != user.id or sale.branch_id != user.branch_id:
+		raise ValidationError("No puedes modificar esta venta.")
+	sale.items.all().delete()
+	return calculate_totals(sale)
+
+
+@transaction.atomic
 def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=None):
 	sale = Sale.objects.select_for_update().prefetch_related("items__product").get(pk=sale.pk)
 	if sale.status != Sale.STATUS_DRAFT:

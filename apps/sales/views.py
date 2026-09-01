@@ -9,7 +9,7 @@ from django.http import Http404
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.views.generic import TemplateView
+from django.views.generic import ListView, TemplateView
 
 from apps.products.models import Brand, Category, Product
 from apps.users.models import User
@@ -18,13 +18,18 @@ from apps.inventory.models import Stock
 
 from .forms import CheckoutForm
 from .models import Sale, SaleItem
-from .services import add_sale_item, confirm_sale, create_sale, calculate_totals
+from .services import add_sale_item, calculate_totals, clear_sale_items, confirm_sale, create_sale
 
 
-class PosAccessMixin(LoginRequiredMixin):
+class SalesAccessMixin(LoginRequiredMixin):
 	def dispatch(self, request, *args, **kwargs):
 		if request.user.role not in {User.ROLE_CAJERO, User.ROLE_ADMIN, User.ROLE_SUPERADMIN} or not request.user.branch_id:
 			raise Http404
+		return super().dispatch(request, *args, **kwargs)
+
+
+class PosAccessMixin(SalesAccessMixin):
+	def dispatch(self, request, *args, **kwargs):
 		if not CashRegister.objects.filter(user=request.user, branch=request.user.branch, status=CashRegister.STATUS_OPEN).exists():
 			messages.error(request, "No puedes abrir Ventas sin una caja abierta. Abre tu caja antes de continuar.")
 			return redirect("cash:list")
@@ -32,7 +37,14 @@ class PosAccessMixin(LoginRequiredMixin):
 
 
 class PosView(PosAccessMixin, TemplateView):
-	template_name = "sales/pos_quantity.html"
+	template_name = "sales/pos.html"
+
+	def get_cash_register(self):
+		return CashRegister.objects.select_related("user", "branch").prefetch_related("movements").filter(
+			user=self.request.user,
+			branch=self.request.user.branch,
+			status=CashRegister.STATUS_OPEN,
+		).first()
 
 	def get_sale(self):
 		sale = Sale.objects.filter(
@@ -45,6 +57,12 @@ class PosView(PosAccessMixin, TemplateView):
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		sale = self.get_sale()
+		cash_register = self.get_cash_register()
+		recent_sales = Sale.objects.filter(
+			user=self.request.user,
+			branch=self.request.user.branch,
+			status=Sale.STATUS_COMPLETED,
+		).order_by("-completed_at")[:5]
 		query = self.request.GET.get("q", "").strip()
 		category_id = self.request.GET.get("category", "")
 		brand_id = self.request.GET.get("brand", "")
@@ -66,7 +84,18 @@ class PosView(PosAccessMixin, TemplateView):
 				output_field=DecimalField(max_digits=15, decimal_places=2),
 			)
 		)
-		context.update(sale=sale, products=products.select_related("category", "brand")[:24], query=query, category_id=category_id, brand_id=brand_id, categories=Category.objects.filter(is_active=True), brands=Brand.objects.filter(is_active=True), checkout_form=CheckoutForm())
+		context.update(
+			sale=sale,
+			cash_register=cash_register,
+			recent_sales=recent_sales,
+			products=products.select_related("category", "brand")[:24],
+			query=query,
+			category_id=category_id,
+			brand_id=brand_id,
+			categories=Category.objects.filter(is_active=True),
+			brands=Brand.objects.filter(is_active=True),
+			checkout_form=CheckoutForm(),
+		)
 		return context
 
 
@@ -112,6 +141,53 @@ class PosUpdateItemView(PosAccessMixin, TemplateView):
 		return redirect("sales:pos")
 
 
+class PosClearCartView(PosAccessMixin, TemplateView):
+	def post(self, request):
+		sale = get_object_or_404(
+			Sale,
+			user=request.user,
+			status=Sale.STATUS_DRAFT,
+			cash_register__status=CashRegister.STATUS_OPEN,
+		)
+		try:
+			clear_sale_items(sale=sale, user=request.user)
+		except ValidationError as error:
+			messages.error(request, "; ".join(error.messages))
+		else:
+			messages.success(request, "Carrito vaciado correctamente.")
+		return redirect("sales:pos")
+
+
+class SaleListView(SalesAccessMixin, ListView):
+	model = Sale
+	template_name = "sales/list.html"
+	context_object_name = "sales"
+
+	def get_queryset(self):
+		queryset = Sale.objects.select_related("customer", "user", "cash_register").filter(
+			branch=self.request.user.branch,
+		).exclude(status=Sale.STATUS_DRAFT)
+		if query := self.request.GET.get("q", "").strip():
+			queryset = queryset.filter(
+				Q(number__icontains=query)
+				| Q(customer__first_name__icontains=query)
+				| Q(customer__last_name__icontains=query)
+			)
+		if status := self.request.GET.get("status"):
+			queryset = queryset.filter(status=status)
+		return queryset
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context["query"] = self.request.GET.get("q", "").strip()
+		context["selected_status"] = self.request.GET.get("status", "")
+		context["statuses"] = [
+			(Sale.STATUS_COMPLETED, "Completada"),
+			(Sale.STATUS_CANCELLED, "Anulada"),
+		]
+		return context
+
+
 class PosCheckoutView(PosAccessMixin, TemplateView):
 	def post(self, request):
 		sale = get_object_or_404(
@@ -134,7 +210,7 @@ class PosCheckoutView(PosAccessMixin, TemplateView):
 		return redirect("sales:pos")
 
 
-class SaleDetailView(PosAccessMixin, TemplateView):
+class SaleDetailView(SalesAccessMixin, TemplateView):
 	template_name = "sales/sale_detail.html"
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)

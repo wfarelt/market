@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Compras{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h5 class="mb-0 fw-semibold">Compras</h5>
+    <span class="text-muted small">Registro periódico de ingresos a inventario</span>
+  </div>
+  <a href="{% url 'purchases:create' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Nueva compra</a>
+</div>
+
+<div class="card border-0 shadow-sm mb-4"><div class="card-body p-3"><form method="get" class="row g-2"><div class="col-md-8"><input class="form-control" name="q" value="{{ query }}" placeholder="Buscar por número o nota"></div><div class="col-md-2"><select class="form-select" name="status"><option value="">Todos los estados</option>{% for value, label in statuses %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><div class="col-md-2 d-grid"><button class="btn btn-outline-secondary"><i class="bi bi-search me-1"></i>Buscar</button></div></form></div></div>
+
+<div class="card border-0 shadow-sm"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Número</th><th>Fecha</th><th>Sucursal</th><th>Ítems</th><th>Estado</th><th class="text-end">Detalle</th></tr></thead><tbody>{% for purchase in purchases %}<tr><td class="font-monospace fw-semibold">{{ purchase.number }}</td><td>{{ purchase.created_at|date:"d/m/Y H:i" }}</td><td>{{ purchase.branch }}</td><td>{{ purchase.items.count }}</td><td><span class="badge rounded-pill {% if purchase.status == 'CONFIRMED' %}bg-success{% elif purchase.status == 'CANCELLED' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">{{ purchase.get_status_display }}</span></td><td class="text-end"><a href="{% url 'purchases:detail' purchase.pk %}" class="btn btn-sm btn-outline-secondary" title="Ver compra"><i class="bi bi-eye"></i></a></td></tr>{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No hay compras registradas.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}
