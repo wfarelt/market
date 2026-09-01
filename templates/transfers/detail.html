@@ -1,1 +1,78 @@
-{% extends "base.html" %}{% block content %}<div class="d-flex justify-content-between mb-4"><div><h5 class="fw-semibold">{{ transfer.number }}</h5><span>{{ transfer.origin_branch }} → {{ transfer.destination_branch }}</span></div><span class="badge bg-secondary">{{ transfer.get_status_display }}</span></div><div class="card border-0 shadow-sm"><table class="table mb-0"><thead><tr><th>Producto</th><th>Solicitada</th><th>Enviada</th><th>Recibida</th></tr></thead><tbody>{% for item in transfer.items.all %}<tr><td>{{ item.product }}</td><td>{{ item.requested_quantity }}</td><td>{{ item.sent_quantity }}</td><td>{{ item.received_quantity }}</td></tr>{% endfor %}</tbody></table>{% if transfer.status == 'DRAFT' %}<div class="card-body"><a class="btn btn-outline-secondary" href="{% url 'transfers:update' transfer.pk %}">Editar</a><form class="d-inline" method="post" action="{% url 'transfers:send' transfer.pk %}">{% csrf_token %}<button class="btn btn-primary">Enviar</button></form><form class="d-inline" method="post" action="{% url 'transfers:cancel' transfer.pk %}">{% csrf_token %}<button class="btn btn-outline-danger">Cancelar</button></form></div>{% elif transfer.status == 'SENT' %}<form class="card-body" method="post" action="{% url 'transfers:receive' transfer.pk %}">{% csrf_token %}{% for item in transfer.items.all %}<label>{{ item.product }}<input class="form-control" name="item-{{ item.pk }}" value="{{ item.sent_quantity }}"></label>{% endfor %}<button class="btn btn-primary">Recibir</button></form>{% endif %}</div>{% endblock %}
+{% extends "base.html" %}
+
+{% block title %}Traspaso {{ transfer.number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h5 class="fw-semibold mb-1">Traspaso {{ transfer.number }}</h5>
+        <span class="text-muted small">{{ transfer.origin_branch }} <i class="bi bi-arrow-right mx-1"></i> {{ transfer.destination_branch }}</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge rounded-pill {% if transfer.status == 'RECEIVED' %}bg-success{% elif transfer.status == 'SENT' %}bg-primary{% elif transfer.status == 'CANCELLED' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">{{ transfer.get_status_display }}</span>
+        <a href="{% url 'transfers:list' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Volver</a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3">
+        <div class="row g-3">
+            <div class="col-md-4"><span class="text-muted small d-block">Sucursal origen</span><strong>{{ transfer.origin_branch }}</strong></div>
+            <div class="col-md-4"><span class="text-muted small d-block">Sucursal destino</span><strong>{{ transfer.destination_branch }}</strong></div>
+            <div class="col-md-4"><span class="text-muted small d-block">Creado</span><strong>{{ transfer.created_at|date:"d/m/Y H:i" }}</strong></div>
+            {% if transfer.notes %}<div class="col-12"><span class="text-muted small d-block">Observación</span><span>{{ transfer.notes }}</span></div>{% endif %}
+        </div>
+    </div>
+</div>
+
+{% if transfer.status == 'SENT' %}
+<form method="post" action="{% url 'transfers:receive' transfer.pk %}">
+    {% csrf_token %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h6 class="fw-semibold mb-0">Recepción de productos</h6>
+                <span class="text-muted small">Indica lo realmente recibido. Puedes registrar cantidades parciales de $0$ hasta el total enviado.</span>
+            </div>
+            <span class="badge bg-primary">Pendiente de recepción</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light"><tr><th>Producto</th><th class="text-end">Solicitada</th><th class="text-end">Enviada</th><th style="width: 180px;">Cantidad recibida</th></tr></thead>
+                <tbody>
+                    {% for item in transfer.items.all %}
+                    <tr>
+                        <td><strong>{{ item.product.name }}</strong><small class="d-block text-muted">{{ item.product.sku }}</small></td>
+                        <td class="text-end font-monospace">{{ item.requested_quantity }}</td>
+                        <td class="text-end font-monospace fw-semibold">{{ item.sent_quantity }}</td>
+                        <td><input type="number" class="form-control text-end" name="item-{{ item.pk }}" min="0" max="{{ item.sent_quantity }}" step="0.01" value="{{ item.sent_quantity }}"></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-body border-top d-flex flex-wrap justify-content-end gap-2">
+            <a href="{% url 'transfers:list' %}" class="btn btn-outline-secondary">Cancelar</a>
+            <button class="btn btn-success"><i class="bi bi-box-arrow-in-down me-1"></i>Confirmar recepción</button>
+        </div>
+    </div>
+</form>
+{% else %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3"><h6 class="fw-semibold mb-0">Productos del traspaso</h6></div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th>Producto</th><th class="text-end">Solicitada</th><th class="text-end">Enviada</th><th class="text-end">Recibida</th></tr></thead>
+            <tbody>{% for item in transfer.items.all %}<tr><td><strong>{{ item.product.name }}</strong><small class="d-block text-muted">{{ item.product.sku }}</small></td><td class="text-end font-monospace">{{ item.requested_quantity }}</td><td class="text-end font-monospace">{{ item.sent_quantity }}</td><td class="text-end font-monospace">{{ item.received_quantity }}</td></tr>{% empty %}<tr><td colspan="4" class="text-center text-muted py-4">No hay productos en este traspaso.</td></tr>{% endfor %}</tbody>
+        </table>
+    </div>
+    {% if transfer.status == 'DRAFT' %}
+    <div class="card-body border-top d-flex flex-wrap justify-content-end gap-2">
+        <form method="post" action="{% url 'transfers:cancel' transfer.pk %}">{% csrf_token %}<button class="btn btn-outline-danger">Cancelar borrador</button></form>
+        <a href="{% url 'transfers:update' transfer.pk %}" class="btn btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Editar</a>
+        <form method="post" action="{% url 'transfers:send' transfer.pk %}">{% csrf_token %}<button class="btn btn-primary"><i class="bi bi-send me-1"></i>Enviar traspaso</button></form>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

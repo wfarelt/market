@@ -1,6 +1,10 @@
 from django.urls import path
 
+from . import views
+
 app_name = "reports"
 
-urlpatterns = []
+urlpatterns = [
+	path("", views.ReportDashboardView.as_view(), name="index"),
+]
 

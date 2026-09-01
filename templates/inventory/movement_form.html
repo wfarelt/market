@@ -8,10 +8,10 @@
   <div class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><div class="row g-3">
     {% for field in form %}<div class="{% if field.name == 'notes' %}col-12{% else %}col-md-6{% endif %}"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|join:", " }}</div>{% endif %}</div>{% endfor %}
   </div></div></div>
-  <div class="card border-0 shadow-sm"><div class="card-body p-4"><div class="d-flex align-items-center justify-content-between mb-3"><h6 class="fw-semibold mb-0">Productos</h6><button type="button" id="add-line" class="btn btn-sm btn-outline-secondary"><i class="bi bi-plus-lg"></i></button></div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-4"><div class="d-flex align-items-center justify-content-between mb-3"><div><h6 class="fw-semibold mb-0">Productos</h6><span class="text-muted small">El stock corresponde a la sucursal seleccionada.</span></div><button type="button" id="add-line" class="btn btn-sm btn-outline-secondary"><i class="bi bi-plus-lg me-1"></i>Añadir producto</button></div>
     {{ formset.management_form }}{% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
-    <div id="lines">{% for line_form in formset %}<div class="row g-2 align-items-end mb-2 movement-line">{% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}<div class="col-md-5"><label class="form-label small">Producto</label>{{ line_form.product }}{{ line_form.product.errors }}</div><div class="col-md-3"><label class="form-label small">Cantidad</label>{{ line_form.quantity }}{{ line_form.quantity.errors }}</div><div class="col-md-3"><label class="form-label small">Dirección de ajuste</label>{{ line_form.adjustment_direction }}{{ line_form.adjustment_direction.errors }}</div><div class="col-md-1">{% if line_form.instance.pk %}<div class="form-check mb-2">{{ line_form.DELETE }}<label class="form-check-label small" for="{{ line_form.DELETE.id_for_label }}">Quitar</label></div>{% endif %}</div></div>{% endfor %}</div>
-    <template id="empty-line"><div class="row g-2 align-items-end mb-2 movement-line">{% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}<div class="col-md-5"><label class="form-label small">Producto</label>{{ formset.empty_form.product }}</div><div class="col-md-3"><label class="form-label small">Cantidad</label>{{ formset.empty_form.quantity }}</div><div class="col-md-3"><label class="form-label small">Dirección de ajuste</label>{{ formset.empty_form.adjustment_direction }}</div></div></template>
+    <div id="lines">{% for line_form in formset %}<div class="row g-2 align-items-end mb-2 movement-line">{% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}<div class="col-md-4"><label class="form-label small">Producto</label>{{ line_form.product }}{% if line_form.product.errors %}<div class="invalid-feedback d-block">{{ line_form.product.errors|join:", " }}</div>{% endif %}</div><div class="col-md-2"><label class="form-label small">Stock disponible</label><div class="form-control bg-light stock-available">--</div></div><div class="col-md-2"><label class="form-label small">Cantidad</label>{{ line_form.quantity }}{% if line_form.quantity.errors %}<div class="invalid-feedback d-block">{{ line_form.quantity.errors|join:", " }}</div>{% endif %}</div><div class="col-md-3"><label class="form-label small">Dirección de ajuste</label>{{ line_form.adjustment_direction }}{% if line_form.adjustment_direction.errors %}<div class="invalid-feedback d-block">{{ line_form.adjustment_direction.errors|join:", " }}</div>{% endif %}</div><div class="col-md-1"><button type="button" class="btn btn-outline-danger w-100 remove-line" title="Eliminar producto"><i class="bi bi-trash"></i></button><span class="d-none">{{ line_form.DELETE }}</span></div></div>{% endfor %}</div>
+    <template id="empty-line"><div class="row g-2 align-items-end mb-2 movement-line">{% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}<div class="col-md-4"><label class="form-label small">Producto</label>{{ formset.empty_form.product }}</div><div class="col-md-2"><label class="form-label small">Stock disponible</label><div class="form-control bg-light stock-available">--</div></div><div class="col-md-2"><label class="form-label small">Cantidad</label>{{ formset.empty_form.quantity }}</div><div class="col-md-3"><label class="form-label small">Dirección de ajuste</label>{{ formset.empty_form.adjustment_direction }}</div><div class="col-md-1"><button type="button" class="btn btn-outline-danger w-100 remove-line" title="Eliminar producto"><i class="bi bi-trash"></i></button></div></div></template>
     <div class="d-flex justify-content-end gap-2 mt-3"><a href="{% url 'inventory:movement-list' %}" class="btn btn-outline-secondary">Cancelar</a><button type="submit" class="btn btn-primary">Guardar borrador</button></div>
   </div></div>
 </form>
@@ -19,11 +19,34 @@
 
 {% block extra_js %}
 <script>
+  const lines = document.getElementById("lines");
+  const totalForms = document.getElementById("id_lines-TOTAL_FORMS");
+  const branch = document.getElementById("id_branch");
+  const stockUrl = "{% url 'inventory:stock-availability' %}";
+  const updateLineStock = async (line) => {
+    const product = line.querySelector("select[name$='-product']");
+    const stock = line.querySelector(".stock-available");
+    if (!branch.value || !product.value) { stock.textContent = "--"; return; }
+    stock.textContent = "...";
+    const response = await fetch(`${stockUrl}?branch=${branch.value}&product=${product.value}`);
+    if (!response.ok) { stock.textContent = "--"; return; }
+    const data = await response.json();
+    stock.textContent = Number(data.quantity).toFixed(2);
+  };
   document.getElementById("add-line").addEventListener("click", () => {
-    const totalForms = document.getElementById("id_lines-TOTAL_FORMS");
     const template = document.getElementById("empty-line").innerHTML.replaceAll("__prefix__", totalForms.value);
-    document.getElementById("lines").insertAdjacentHTML("beforeend", template);
+    lines.insertAdjacentHTML("beforeend", template);
     totalForms.value = Number(totalForms.value) + 1;
   });
+  lines.addEventListener("click", (event) => {
+    const button = event.target.closest(".remove-line");
+    if (!button) return;
+    const line = button.closest(".movement-line");
+    const deleteField = line.querySelector("input[name$='-DELETE']");
+    if (deleteField) { deleteField.checked = true; line.classList.add("d-none"); } else { line.remove(); }
+  });
+  lines.addEventListener("change", (event) => { if (event.target.matches("select[name$='-product']")) updateLineStock(event.target.closest(".movement-line")); });
+  branch.addEventListener("change", () => document.querySelectorAll(".movement-line").forEach(updateLineStock));
+  document.querySelectorAll(".movement-line").forEach(updateLineStock);
 </script>
 {% endblock %}

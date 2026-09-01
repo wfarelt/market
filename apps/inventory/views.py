@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views import View
@@ -58,6 +58,18 @@ class InventoryMovementListView(StockAccessMixin, ListView):
 	template_name = "inventory/movement_list.html"
 	context_object_name = "movements"
 	queryset = InventoryMovement.objects.select_related("branch", "created_by")
+
+
+class StockAvailabilityView(StockAccessMixin, View):
+	def get(self, request):
+		branch_id = request.GET.get("branch")
+		product_id = request.GET.get("product")
+		if not branch_id or not product_id:
+			return JsonResponse({"quantity": "0.00"})
+		if request.user.role == User.ROLE_ALMACENERO and str(request.user.branch_id) != branch_id:
+			raise Http404
+		quantity = Stock.objects.filter(branch_id=branch_id, product_id=product_id).values_list("quantity", flat=True).first() or 0
+		return JsonResponse({"quantity": str(quantity)})
 
 
 class InventoryMovementFormsetMixin(StockAccessMixin):

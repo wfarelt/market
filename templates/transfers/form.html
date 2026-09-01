@@ -18,8 +18,8 @@
 		<div class="d-flex justify-content-between align-items-center mb-3"><h6 class="fw-semibold mb-0">Productos</h6><button id="add-item" type="button" class="btn btn-sm btn-outline-secondary"><i class="bi bi-plus-lg"></i> Agregar producto</button></div>
 		{{ formset.management_form }}
 		{% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
-		<div id="items">{% for item_form in formset %}<div class="row g-2 align-items-end mb-2 transfer-item">{% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}<div class="col-md-7"><label class="form-label small">Producto</label>{{ item_form.product }}{% if item_form.product.errors %}<div class="invalid-feedback d-block">{{ item_form.product.errors|join:", " }}</div>{% endif %}</div><div class="col-md-3"><label class="form-label small">Cantidad solicitada</label>{{ item_form.requested_quantity }}{% if item_form.requested_quantity.errors %}<div class="invalid-feedback d-block">{{ item_form.requested_quantity.errors|join:", " }}</div>{% endif %}</div><div class="col-md-2"><button type="button" class="btn btn-outline-danger w-100 remove-item"><i class="bi bi-trash"></i></button></div></div>{% endfor %}</div>
-		<template id="empty-item"><div class="row g-2 align-items-end mb-2 transfer-item">{% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}<div class="col-md-7"><label class="form-label small">Producto</label>{{ formset.empty_form.product }}</div><div class="col-md-3"><label class="form-label small">Cantidad solicitada</label>{{ formset.empty_form.requested_quantity }}</div><div class="col-md-2"><button type="button" class="btn btn-outline-danger w-100 remove-item"><i class="bi bi-trash"></i></button></div></div></template>
+		<div id="items">{% for item_form in formset %}<div class="row g-2 align-items-end mb-2 transfer-item">{% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}<div class="col-md-5"><label class="form-label small">Producto</label>{{ item_form.product }}{% if item_form.product.errors %}<div class="invalid-feedback d-block">{{ item_form.product.errors|join:", " }}</div>{% endif %}</div><div class="col-md-2"><label class="form-label small">Stock origen</label><div class="form-control bg-light stock-available">--</div></div><div class="col-md-3"><label class="form-label small">Cantidad solicitada</label>{{ item_form.requested_quantity }}{% if item_form.requested_quantity.errors %}<div class="invalid-feedback d-block">{{ item_form.requested_quantity.errors|join:", " }}</div>{% endif %}</div><div class="col-md-2"><button type="button" class="btn btn-outline-danger w-100 remove-item"><i class="bi bi-trash"></i></button></div></div>{% endfor %}</div>
+		<template id="empty-item"><div class="row g-2 align-items-end mb-2 transfer-item">{% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}<div class="col-md-5"><label class="form-label small">Producto</label>{{ formset.empty_form.product }}</div><div class="col-md-2"><label class="form-label small">Stock origen</label><div class="form-control bg-light stock-available">--</div></div><div class="col-md-3"><label class="form-label small">Cantidad solicitada</label>{{ formset.empty_form.requested_quantity }}</div><div class="col-md-2"><button type="button" class="btn btn-outline-danger w-100 remove-item"><i class="bi bi-trash"></i></button></div></div></template>
 		<div class="d-flex justify-content-end gap-2 mt-4"><a href="{% url 'transfers:list' %}" class="btn btn-outline-secondary">Cancelar</a><button class="btn btn-primary">Guardar borrador</button></div>
 	</div></div>
 </form>
@@ -28,6 +28,21 @@
 {% block extra_js %}<script>
 const items = document.getElementById("items");
 const total = document.getElementById("id_items-TOTAL_FORMS");
+const originBranch = document.getElementById("id_origin_branch");
+const stockUrl = "{% url 'transfers:stock-availability' %}";
+const updateRowStock = async (row) => {
+	const product = row.querySelector("select[name$='-product']");
+	const stock = row.querySelector(".stock-available");
+	if (!originBranch.value || !product.value) { stock.textContent = "--"; return; }
+	stock.textContent = "...";
+	const response = await fetch(`${stockUrl}?branch=${originBranch.value}&product=${product.value}`);
+	if (!response.ok) { stock.textContent = "--"; return; }
+	const data = await response.json();
+	stock.textContent = Number(data.quantity).toFixed(2);
+};
 document.getElementById("add-item").addEventListener("click", () => { items.insertAdjacentHTML("beforeend", document.getElementById("empty-item").innerHTML.replaceAll("__prefix__", total.value)); total.value = Number(total.value) + 1; });
 items.addEventListener("click", (event) => { const button = event.target.closest(".remove-item"); if (!button) return; const row = button.closest(".transfer-item"); const deleteField = row.querySelector("input[name$='-DELETE']"); if (deleteField) { deleteField.checked = true; row.classList.add("d-none"); } else { row.remove(); total.value = Math.max(0, Number(total.value) - 1); } });
+items.addEventListener("change", (event) => { if (event.target.matches("select[name$='-product']")) updateRowStock(event.target.closest(".transfer-item")); });
+originBranch.addEventListener("change", () => document.querySelectorAll(".transfer-item").forEach(updateRowStock));
+document.querySelectorAll(".transfer-item").forEach(updateRowStock);
 </script>{% endblock %}
