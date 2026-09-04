@@ -18,7 +18,7 @@ from apps.inventory.models import Stock
 
 from .forms import CheckoutForm
 from .models import Sale, SaleItem
-from .services import add_sale_item, calculate_totals, clear_sale_items, confirm_sale, create_sale
+from .services import add_sale_item, calculate_totals, clear_sale_items, confirm_sale, create_sale, update_sale_discount
 
 
 class SalesAccessMixin(LoginRequiredMixin):
@@ -94,7 +94,7 @@ class PosView(PosAccessMixin, TemplateView):
 			brand_id=brand_id,
 			categories=Category.objects.filter(is_active=True),
 			brands=Brand.objects.filter(is_active=True),
-			checkout_form=CheckoutForm(),
+			checkout_form=CheckoutForm(initial={"discount_amount": sale.discount_amount}),
 		)
 		return context
 
@@ -155,6 +155,32 @@ class PosClearCartView(PosAccessMixin, TemplateView):
 			messages.error(request, "; ".join(error.messages))
 		else:
 			messages.success(request, "Carrito vaciado correctamente.")
+		return redirect("sales:pos")
+
+
+class PosUpdateDiscountView(PosAccessMixin, TemplateView):
+	def post(self, request):
+		sale = get_object_or_404(
+			Sale,
+			user=request.user,
+			status=Sale.STATUS_DRAFT,
+			cash_register__status=CashRegister.STATUS_OPEN,
+		)
+		discount_amount = request.POST.get("discount_amount", "0")
+		try:
+			sale = update_sale_discount(sale=sale, discount_amount=discount_amount, user=request.user)
+		except ValidationError as error:
+			if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+				return JsonResponse({"error": "; ".join(error.messages)}, status=400)
+			messages.error(request, "; ".join(error.messages))
+			return redirect("sales:pos")
+
+		if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+			return JsonResponse({
+				"subtotal": str(sale.subtotal),
+				"discount": str(sale.discount_amount),
+				"total": str(sale.total),
+			})
 		return redirect("sales:pos")
 
 

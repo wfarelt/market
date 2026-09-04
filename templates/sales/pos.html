@@ -252,21 +252,27 @@
                 </div>
 
                 <div class="border-top p-3">
-                    <div class="d-flex justify-content-between small mb-2">
-                        <span>Subtotal</span>
-                        <strong class="font-monospace">{{ sale.subtotal }} Bs</strong>
-                    </div>
-                    <div class="d-flex justify-content-between small mb-3">
-                        <span>Descuento</span>
-                        <strong class="font-monospace">{{ sale.discount_amount }} Bs</strong>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
-                        <strong>Total</strong>
-                        <strong id="sale-total" class="font-monospace fs-4 text-primary" data-total="{{ sale.total }}">{{ sale.total }} Bs</strong>
-                    </div>
-
-                    <form method="post" action="{% url 'sales:checkout' %}" class="mt-4">
+                    <form method="post" action="{% url 'sales:checkout' %}">
                         {% csrf_token %}
+                        <div class="d-flex justify-content-between align-items-center small mb-2">
+                            <span>Subtotal</span>
+                            <strong id="sale-subtotal" class="font-monospace" data-subtotal="{{ sale.subtotal }}">{{ sale.subtotal }} Bs</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center small mb-2">
+                            <label class="form-label mb-0 fw-semibold" for="{{ checkout_form.discount_amount.id_for_label }}">Descuento</label>
+                            <div class="input-group input-group-sm" style="width: 140px;">
+                                {{ checkout_form.discount_amount }}
+                                <span class="input-group-text">Bs</span>
+                            </div>
+                        </div>
+                        {% if checkout_form.discount_amount.errors %}
+                        <div class="invalid-feedback d-block mb-2">{{ checkout_form.discount_amount.errors|join:", " }}</div>
+                        {% endif %}
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top mb-4">
+                            <strong>Total</strong>
+                            <strong id="sale-total" class="font-monospace fs-4 text-primary" data-total="{{ sale.total }}">{{ sale.total }} Bs</strong>
+                        </div>
+
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <label class="form-label fw-semibold small mb-0" for="{{ checkout_form.customer.id_for_label }}">Cliente</label>
@@ -339,11 +345,67 @@
     const paymentSelect = document.getElementById("{{ checkout_form.payment_method.id_for_label }}");
     const customerSelect = document.getElementById("{{ checkout_form.customer.id_for_label }}");
     const cashReceived = document.getElementById("{{ checkout_form.cash_received.id_for_label }}");
-    const total = Number(document.getElementById("sale-total").dataset.total) || 0;
+    const discountInput = document.getElementById("{{ checkout_form.discount_amount.id_for_label }}");
+    const saleSubtotal = document.getElementById("sale-subtotal");
+    const saleTotal = document.getElementById("sale-total");
     const changeAmount = document.getElementById("change-amount");
     const paymentButtons = document.querySelectorAll(".payment-method-button");
+    const updateDiscountUrl = "{% url 'sales:update-discount' %}";
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+
+    const getSubtotal = () => Number(saleSubtotal.dataset.subtotal) || 0;
+
+    const recalculateTotals = () => {
+        const subtotal = getSubtotal();
+        let discount = Number(discountInput ? discountInput.value : 0) || 0;
+        if (discount < 0) discount = 0;
+        if (discount > subtotal) discount = subtotal;
+        const total = Math.max(0, subtotal - discount);
+        saleTotal.textContent = `${total.toFixed(2)} Bs`;
+        saleTotal.dataset.total = total;
+        updateChange();
+    };
+
+    const saveDiscountBackend = async () => {
+        const discount = Number(discountInput ? discountInput.value : 0) || 0;
+        try {
+            const response = await fetch(updateDiscountUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRFToken": csrfToken,
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: new URLSearchParams({ discount_amount: discount })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.subtotal) {
+                    saleSubtotal.textContent = `${Number(data.subtotal).toFixed(2)} Bs`;
+                    saleSubtotal.dataset.subtotal = data.subtotal;
+                }
+                if (data.total) {
+                    saleTotal.textContent = `${Number(data.total).toFixed(2)} Bs`;
+                    saleTotal.dataset.total = data.total;
+                }
+                updateChange();
+            }
+        } catch (err) {
+            console.error("Error al actualizar descuento:", err);
+        }
+    };
+
+    let discountTimeout = null;
+    if (discountInput) {
+        discountInput.addEventListener("input", () => {
+            recalculateTotals();
+            clearTimeout(discountTimeout);
+            discountTimeout = setTimeout(saveDiscountBackend, 400);
+        });
+    }
 
     const updateChange = () => {
+        const total = Number(saleTotal.dataset.total) || 0;
         const received = Number(cashReceived.value) || 0;
         const change = paymentSelect.value === "CASH" ? Math.max(received - total, 0) : 0;
         changeAmount.textContent = `${change.toFixed(2)} Bs`;

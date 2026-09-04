@@ -18,12 +18,32 @@ def _validate_unit_quantity(quantity):
 	return quantity
 
 
-def calculate_totals(sale):
+def calculate_totals(sale, discount_amount=None):
 	subtotal = sum((item.unit_price * item.quantity for item in sale.items.all()), Decimal("0"))
-	discount = sum((item.discount_amount for item in sale.items.all()), Decimal("0"))
-	sale.subtotal, sale.discount_amount, sale.total = subtotal, discount, subtotal - discount
+	item_discounts = sum((item.discount_amount for item in sale.items.all()), Decimal("0"))
+	if discount_amount is not None:
+		discount = Decimal(str(discount_amount))
+	else:
+		discount = sale.discount_amount or item_discounts
+	discount = max(Decimal("0"), min(discount, subtotal))
+	sale.subtotal = subtotal
+	sale.discount_amount = discount
+	sale.total = max(Decimal("0"), subtotal - discount)
 	sale.save(update_fields=["subtotal", "discount_amount", "total", "updated_at"])
 	return sale
+
+
+@transaction.atomic
+def update_sale_discount(*, sale, discount_amount, user):
+	sale = Sale.objects.select_for_update().get(pk=sale.pk)
+	if sale.status != Sale.STATUS_DRAFT:
+		raise ValidationError("Solo se pueden modificar ventas en borrador.")
+	if sale.user_id != user.id or sale.branch_id != user.branch_id:
+		raise ValidationError("No puedes modificar esta venta.")
+	discount_amount = Decimal(str(discount_amount or 0))
+	if discount_amount < 0:
+		raise ValidationError("El descuento no puede ser negativo.")
+	return calculate_totals(sale, discount_amount=discount_amount)
 
 
 @transaction.atomic
@@ -62,7 +82,7 @@ def clear_sale_items(*, sale, user):
 
 
 @transaction.atomic
-def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=None):
+def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=None, discount_amount=None):
 	sale = Sale.objects.select_for_update().prefetch_related("items__product").get(pk=sale.pk)
 	if sale.status != Sale.STATUS_DRAFT:
 		raise ValidationError("La venta ya fue procesada.")
@@ -73,7 +93,13 @@ def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=Non
 		raise ValidationError("La caja asociada no está abierta.")
 	if not sale.items.exists():
 		raise ValidationError("La venta debe tener al menos un producto.")
-	calculate_totals(sale)
+	if discount_amount is not None:
+		discount = Decimal(str(discount_amount or 0))
+		if discount < 0:
+			raise ValidationError("El descuento no puede ser negativo.")
+		calculate_totals(sale, discount_amount=discount)
+	else:
+		calculate_totals(sale)
 	if customer:
 		sale.customer = customer
 	if payment_method == Sale.PAYMENT_CASH:
