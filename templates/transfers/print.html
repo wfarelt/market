@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Traspaso {{ transfer.number }}</title>
+<style>
+	@page { size: A4; margin: 15mm; }
+	* { box-sizing: border-box; }
+	body { font-family: "Segoe UI", Arial, sans-serif; color: #1a1a1a; font-size: 12px; margin: 0; }
+	.sheet { max-width: 800px; margin: 0 auto; }
+	.header { text-align: center; border-bottom: 2px solid #1a1a1a; padding-bottom: 10px; margin-bottom: 12px; }
+	.header h1 { font-size: 16px; margin: 0; text-transform: uppercase; }
+	.header h2 { font-size: 13px; margin: 4px 0 0; font-weight: 600; letter-spacing: 1px; color: #444; }
+	.status-badge { display: inline-block; margin-top: 6px; padding: 3px 12px; border-radius: 999px; font-weight: 600; font-size: 11px; color: #fff; }
+	.status-DRAFT { background: #e0a800; }
+	.status-SENT { background: #0d6efd; }
+	.status-RECEIVED { background: #198754; }
+	.status-CANCELLED { background: #6c757d; }
+	.info-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+	.info-table td { border: 1px solid #ccc; padding: 5px 8px; vertical-align: top; }
+	.info-table td.label { width: 150px; font-weight: 600; background: #f5f5f5; }
+	.section-title { font-weight: 700; text-transform: uppercase; font-size: 11px; background: #f0f0f0; padding: 5px 8px; border: 1px solid #ccc; border-bottom: none; }
+	.branch-box { border: 1px solid #ccc; padding: 8px; margin-bottom: 10px; }
+	.branch-box strong { font-size: 13px; }
+	.branch-box .addr { color: #555; display: block; margin-top: 2px; }
+	.items-table { width: 100%; border-collapse: collapse; margin-top: 4px; margin-bottom: 10px; }
+	.items-table th, .items-table td { border: 1px solid #ccc; padding: 5px 8px; }
+	.items-table th { background: #f0f0f0; text-transform: uppercase; font-size: 10.5px; }
+	.items-table td.num, .items-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+	.totals { text-align: right; font-weight: 600; margin-bottom: 24px; }
+	.signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+	.signature { width: 45%; text-align: center; }
+	.signature .line { border-top: 1px solid #1a1a1a; margin-bottom: 4px; padding-top: 40px; }
+	.print-actions { text-align: center; margin: 16px 0; }
+	@media print { .print-actions { display: none; } }
+</style>
+</head>
+<body onload="window.print()">
+<div class="print-actions"><button onclick="window.print()">Imprimir</button></div>
+<div class="sheet">
+	<div class="header">
+		<h1>{{ company.trade_name|default:company.name }}</h1>
+		{% if company.tax_id %}<span class="addr">NIT: {{ company.tax_id }}</span>{% endif %}
+		<h2>Detalle de Traspaso</h2>
+		<span class="status-badge status-{{ transfer.status }}">{{ transfer.get_status_display }}</span>
+	</div>
+
+	<table class="info-table">
+		<tr><td class="label">N° Traspaso</td><td>{{ transfer.number }}</td><td class="label">Fecha creación</td><td>{{ transfer.created_at|date:"d/m/Y H:i" }}</td></tr>
+		<tr><td class="label">Fecha envío</td><td>{{ transfer.sent_at|date:"d/m/Y H:i"|default:"-" }}</td><td class="label">Fecha recepción</td><td>{{ transfer.received_at|date:"d/m/Y H:i"|default:"-" }}</td></tr>
+	</table>
+
+	<div class="branch-box">
+		<span class="section-title" style="display:block; border:none; background:none; padding:0; margin-bottom:4px;">Sucursal Origen</span>
+		<strong>{{ transfer.origin_branch.name }}</strong>
+		{% if transfer.origin_branch.address %}<span class="addr">Dirección: {{ transfer.origin_branch.address }}</span>{% endif %}
+	</div>
+	<div class="branch-box">
+		<span class="section-title" style="display:block; border:none; background:none; padding:0; margin-bottom:4px;">Sucursal Destino</span>
+		<strong>{{ transfer.destination_branch.name }}</strong>
+		{% if transfer.destination_branch.address %}<span class="addr">Dirección: {{ transfer.destination_branch.address }}</span>{% endif %}
+	</div>
+
+	<table class="info-table">
+		<tr><td class="label">Usuario solicita</td><td>{% if transfer.created_by %}{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}{% else %}-{% endif %}</td></tr>
+		<tr><td class="label">Usuario envía</td><td>{% if transfer.sent_by %}{{ transfer.sent_by.get_full_name|default:transfer.sent_by.username }}{% else %}-{% endif %}</td></tr>
+		<tr><td class="label">Usuario recibe</td><td>{% if transfer.received_by %}{{ transfer.received_by.get_full_name|default:transfer.received_by.username }}{% else %}________________________{% endif %}</td></tr>
+	</table>
+
+	{% if transfer.notes %}
+	<div class="section-title">Observaciones</div>
+	<div class="branch-box" style="border-top:none;">{{ transfer.notes }}</div>
+	{% endif %}
+
+	<div class="section-title">Detalle de Productos</div>
+	<table class="items-table">
+		<thead>
+			<tr><th>#</th><th>Código</th><th>Producto</th><th class="num">Solicitada</th><th class="num">Enviada</th><th class="num">Recibida</th></tr>
+		</thead>
+		<tbody>
+			{% for item in transfer.items.all %}
+			<tr>
+				<td>{{ forloop.counter }}</td>
+				<td>{{ item.product.sku }}</td>
+				<td>{{ item.product.name }}</td>
+				<td class="num">{{ item.requested_quantity }}</td>
+				<td class="num">{{ item.sent_quantity }}</td>
+				<td class="num">{{ item.received_quantity }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+
+	<div class="totals">
+		Total de productos: {{ transfer.items.all|length }}<br>
+		Total de unidades enviadas: {{ total_units }}
+	</div>
+
+	<div class="signatures">
+		<div class="signature"><div class="line"></div>Firma Entrega<br>Nombre: ______________________<br>Fecha: ______________________</div>
+		<div class="signature"><div class="line"></div>Firma Recepción<br>Nombre: ______________________<br>Fecha: ______________________</div>
+	</div>
+</div>
+</body>
+</html>

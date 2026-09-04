@@ -85,6 +85,12 @@
         <i class="bi bi-bar-chart me-2"></i>Reportes
       </a>
     </li>
+    <li class="nav-item">
+      <a class="nav-link text-dark {% if request.resolver_match.app_name == 'settings_app' %}fw-semibold{% endif %}"
+         href="{% url 'settings_app:company' %}">
+        <i class="bi bi-gear me-2"></i>Configuración
+      </a>
+    </li>
     {% endif %}
   </ul>
 </nav>

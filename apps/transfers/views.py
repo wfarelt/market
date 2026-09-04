@@ -8,6 +8,7 @@ from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.inventory.models import Stock
+from apps.settings_app.models import CompanySettings
 from apps.users.models import User
 from .forms import TransferForm, TransferItemFormSet
 from .models import Transfer
@@ -95,6 +96,23 @@ class TransferDetailView(TransferAccessMixin, DetailView):
 		obj = super().get_object(queryset)
 		if not can_view_transfer(self.request.user, obj): raise Http404
 		return obj
+
+
+class TransferPrintView(TransferAccessMixin, DetailView):
+	model = Transfer; template_name = "transfers/print.html"; context_object_name = "transfer"
+	def get_queryset(self):
+		return Transfer.objects.select_related(
+			"origin_branch", "destination_branch", "created_by", "sent_by", "received_by"
+		).prefetch_related("items__product")
+	def get_object(self, queryset=None):
+		obj = super().get_object(queryset)
+		if not can_view_transfer(self.request.user, obj): raise Http404
+		return obj
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context["total_units"] = sum(item.sent_quantity for item in self.object.items.all())
+		context["company"] = CompanySettings.load()
+		return context
 
 
 class TransferActionView(TransferAccessMixin, View):

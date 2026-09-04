@@ -17,6 +17,7 @@
             <th>Código</th>
             <th>Nombre</th>
             <th>Teléfono</th>
+            <th>Dirección</th>
             <th>Estado</th>
             <th class="text-end">Acciones</th>
           </tr>
@@ -27,6 +28,7 @@
             <td class="font-monospace">{{ branch.code }}</td>
             <td>{{ branch.name }}</td>
             <td class="text-muted">{{ branch.phone|default:"—" }}</td>
+            <td class="text-muted">{{ branch.address|default:"—" }}</td>
             <td>
               {% if branch.is_active %}
                 <span class="badge rounded-pill bg-success">Activa</span>

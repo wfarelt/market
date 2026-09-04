@@ -22,6 +22,7 @@
 					<td class="text-end">
 						<div class="d-inline-flex gap-1">
 							<a href="{% url 'transfers:detail' transfer.pk %}" class="btn btn-sm btn-outline-secondary" title="Ver detalle"><i class="bi bi-eye"></i></a>
+							<a href="{% url 'transfers:print' transfer.pk %}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Imprimir detalle"><i class="bi bi-printer"></i></a>
 							{% if transfer.status == 'DRAFT' %}
 							<a href="{% url 'transfers:update' transfer.pk %}" class="btn btn-sm btn-outline-secondary" title="Editar"><i class="bi bi-pencil"></i></a>
 							<form method="post" action="{% url 'transfers:send' transfer.pk %}">{% csrf_token %}<button class="btn btn-sm btn-primary" title="Enviar"><i class="bi bi-send"></i></button></form>
