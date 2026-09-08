@@ -40,6 +40,8 @@ class ProductForm(StyledModelForm):
 			"name",
 			"sku",
 			"description",
+			"product_type",
+			"image",
 			"category",
 			"brand",
 			"unit_measure",

@@ -21,5 +21,6 @@ class ProductModelTests(TestCase):
 
 		self.assertEqual(product.category, category)
 		self.assertEqual(product.list_price, Decimal("12.50"))
+		self.assertEqual(product.product_type, Product.TYPE_FINISHED_GOOD)
 		self.assertNotIn("stock", [field.name for field in Product._meta.fields])
 

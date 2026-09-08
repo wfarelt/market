@@ -75,7 +75,7 @@ class PosView(PosAccessMixin, TemplateView):
 			user=self.request.user,
 			branch=self.request.user.branch,
 			status=Sale.STATUS_COMPLETED,
-		).order_by("-completed_at")[:5]
+		).order_by("-completed_at")[:3]
 		query = self.request.GET.get("q", "").strip()
 		category_id = self.request.GET.get("category", "")
 		brand_id = self.request.GET.get("brand", "")
@@ -101,7 +101,7 @@ class PosView(PosAccessMixin, TemplateView):
 			sale=sale,
 			cash_register=cash_register,
 			recent_sales=recent_sales,
-			products=products.select_related("category", "brand")[:24],
+			products=products.select_related("category", "brand")[:27],
 			query=query,
 			category_id=category_id,
 			brand_id=brand_id,

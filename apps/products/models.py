@@ -42,9 +42,18 @@ class UnitMeasure(CatalogModel):
 
 
 class Product(TimeStampedModel):
+	TYPE_RAW_MATERIAL = "RAW_MATERIAL"
+	TYPE_FINISHED_GOOD = "FINISHED_GOOD"
+	TYPE_CHOICES = [
+		(TYPE_RAW_MATERIAL, "Materia prima"),
+		(TYPE_FINISHED_GOOD, "Producto final"),
+	]
+
 	name = models.CharField(max_length=255)
 	sku = models.CharField(max_length=50, unique=True)
 	description = models.TextField(blank=True)
+	product_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_FINISHED_GOOD, verbose_name="tipo de producto")
+	image = models.ImageField(upload_to="products/", blank=True, verbose_name="imagen")
 	category = models.ForeignKey(
 		Category,
 		blank=True,
