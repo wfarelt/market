@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Purchase, PurchaseItem
+from .models import Purchase, PurchaseItem, Supplier
+
+
+@admin.register(Supplier)
+class SupplierAdmin(admin.ModelAdmin):
+	list_display = ["name", "tax_id", "phone", "is_active"]
+	list_filter = ["is_active"]
+	search_fields = ["name", "tax_id", "phone"]
 
 
 class PurchaseItemInline(admin.TabularInline):
@@ -10,8 +17,8 @@ class PurchaseItemInline(admin.TabularInline):
 
 @admin.register(Purchase)
 class PurchaseAdmin(admin.ModelAdmin):
-	list_display = ["number", "branch", "status", "created_at", "confirmed_at"]
+	list_display = ["number", "supplier", "purchase_date", "invoice_number", "branch", "status", "created_at", "confirmed_at"]
 	list_filter = ["status", "branch"]
-	search_fields = ["number", "notes"]
+	search_fields = ["number", "invoice_number", "supplier__name", "notes"]
 	inlines = [PurchaseItemInline]
 

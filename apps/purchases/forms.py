@@ -1,18 +1,39 @@
 from django import forms
 from django.forms import BaseInlineFormSet, inlineformset_factory
 
-from .models import Purchase, PurchaseItem
+from .models import Purchase, PurchaseItem, Supplier
 
 
 class PurchaseForm(forms.ModelForm):
 	class Meta:
 		model = Purchase
-		fields = ["notes"]
-		widgets = {"notes": forms.Textarea(attrs={"rows": 2})}
+		fields = ["supplier", "purchase_date", "invoice_number", "notes"]
+		widgets = {
+			"purchase_date": forms.DateInput(attrs={"type": "date"}),
+			"notes": forms.Textarea(attrs={"rows": 2}),
+		}
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.fields["notes"].widget.attrs["class"] = "form-control"
+		self.fields["supplier"].queryset = Supplier.objects.filter(is_active=True)
+		if self.instance.supplier_id:
+			self.fields["supplier"].queryset = Supplier.objects.filter(is_active=True) | Supplier.objects.filter(pk=self.instance.supplier_id)
+		for field_name in ["supplier"]:
+			self.fields[field_name].widget.attrs["class"] = "form-select"
+		for field_name in ["purchase_date", "invoice_number", "notes"]:
+			self.fields[field_name].widget.attrs["class"] = "form-control"
+
+
+class SupplierForm(forms.ModelForm):
+	class Meta:
+		model = Supplier
+		fields = ["name", "tax_id", "phone", "email", "address", "is_active"]
+		widgets = {"address": forms.Textarea(attrs={"rows": 3})}
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		for field in self.fields.values():
+			field.widget.attrs["class"] = "form-check-input" if isinstance(field.widget, forms.CheckboxInput) else "form-control"
 
 
 class PurchaseItemForm(forms.ModelForm):

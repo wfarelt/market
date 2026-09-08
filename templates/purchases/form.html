@@ -17,8 +17,30 @@
 
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
-      <label class="form-label fw-semibold small" for="{{ form.notes.id_for_label }}">Notas</label>
-      {{ form.notes }}
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold small" for="{{ form.purchase_date.id_for_label }}">Fecha</label>
+          {{ form.purchase_date }}
+          {% for error in form.purchase_date.errors %}<small class="text-danger d-block">{{ error }}</small>{% endfor %}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold small" for="{{ form.invoice_number.id_for_label }}">Factura</label>
+          {{ form.invoice_number }}
+          {% for error in form.invoice_number.errors %}<small class="text-danger d-block">{{ error }}</small>{% endfor %}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold small" for="{{ form.supplier.id_for_label }}">Proveedor</label>
+          <div class="input-group">
+            {{ form.supplier }}
+            <a href="{% url 'purchases:supplier-create' %}" class="btn btn-outline-secondary" title="Nuevo proveedor"><i class="bi bi-plus-lg"></i></a>
+          </div>
+          {% for error in form.supplier.errors %}<small class="text-danger d-block">{{ error }}</small>{% endfor %}
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-semibold small" for="{{ form.notes.id_for_label }}">Notas</label>
+          {{ form.notes }}
+        </div>
+      </div>
     </div>
   </div>
 

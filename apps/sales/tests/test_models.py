@@ -1,8 +1,10 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.test import TestCase
 from django.core.exceptions import ValidationError
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.branches.models import Branch
 from apps.cash.models import CashMovement, CashRegister
@@ -91,4 +93,18 @@ class SaleServiceTests(TestCase):
 		response = self.client.get(reverse("sales:pos"))
 
 		self.assertContains(response, 'data-method="QR" disabled aria-disabled="true"')
+
+	def test_sale_list_filters_by_date_and_defaults_to_today(self):
+		sale = create_sale(user=self.user)
+		add_sale_item(sale=sale, product=self.product, quantity=1, user=self.user)
+		confirm_sale(sale=sale, user=self.user, payment_method=Sale.PAYMENT_CASH, cash_received=Decimal("20"))
+		sale.completed_at = timezone.now() - timedelta(days=1)
+		sale.save(update_fields=["completed_at", "updated_at"])
+		self.client.force_login(self.user)
+
+		response = self.client.get(reverse("sales:list"))
+		self.assertNotContains(response, sale.number)
+
+		response = self.client.get(reverse("sales:list"), {"date": timezone.localdate(sale.completed_at).isoformat()})
+		self.assertContains(response, sale.number)
 

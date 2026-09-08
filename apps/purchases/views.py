@@ -1,10 +1,11 @@
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, UpdateView, View
 
-from .forms import PurchaseForm, PurchaseItemFormSet
-from .models import Purchase
+from .forms import PurchaseForm, PurchaseItemFormSet, SupplierForm
+from .models import Purchase, Supplier
 from .permissions import PurchaseAccessMixin
 from .selectors import get_purchases_for_user
 from .services import cancel_purchase, confirm_purchase
@@ -25,6 +26,56 @@ class PurchaseListView(PurchaseAccessMixin, ListView):
 		context["selected_status"] = self.request.GET.get("status", "")
 		context["statuses"] = Purchase.STATUS_CHOICES
 		return context
+
+
+class SupplierListView(PurchaseAccessMixin, ListView):
+	model = Supplier
+	template_name = "purchases/supplier_list.html"
+	context_object_name = "suppliers"
+	paginate_by = 20
+
+	def get_queryset(self):
+		queryset = Supplier.objects.all()
+		if query := self.request.GET.get("q", "").strip():
+			queryset = queryset.filter(name__icontains=query)
+		return queryset
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context["query"] = self.request.GET.get("q", "").strip()
+		return context
+
+
+class SupplierCreateView(PurchaseAccessMixin, CreateView):
+	model = Supplier
+	form_class = SupplierForm
+	template_name = "purchases/supplier_form.html"
+	success_url = reverse_lazy("purchases:supplier-list")
+
+	def form_valid(self, form):
+		form.instance.created_by = self.request.user
+		messages.success(self.request, "Proveedor creado correctamente.")
+		return super().form_valid(form)
+
+
+class SupplierUpdateView(PurchaseAccessMixin, UpdateView):
+	model = Supplier
+	form_class = SupplierForm
+	template_name = "purchases/supplier_form.html"
+	success_url = reverse_lazy("purchases:supplier-list")
+
+	def form_valid(self, form):
+		messages.success(self.request, "Proveedor actualizado correctamente.")
+		return super().form_valid(form)
+
+
+class SupplierDeactivateView(PurchaseAccessMixin, View):
+	def post(self, request, pk):
+		supplier = get_object_or_404(Supplier, pk=pk)
+		supplier.is_active = False
+		supplier.save(update_fields=["is_active", "updated_at"])
+		messages.success(request, "Proveedor desactivado correctamente.")
+		return redirect("purchases:supplier-list")
 
 
 class PurchaseFormsetMixin(PurchaseAccessMixin):

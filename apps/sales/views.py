@@ -1,3 +1,4 @@
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.contrib import messages
@@ -9,6 +10,7 @@ from django.http import Http404
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views.generic import ListView, TemplateView
 
 from apps.products.models import Brand, Category, Product
@@ -203,10 +205,20 @@ class SaleListView(SalesAccessMixin, ListView):
 	context_object_name = "sales"
 	paginate_by = 20
 
+	def get_selected_date(self):
+		date_value = self.request.GET.get("date", "")
+		try:
+			return date.fromisoformat(date_value) if date_value else timezone.localdate()
+		except ValueError:
+			return timezone.localdate()
+
 	def get_queryset(self):
+		selected_date = self.get_selected_date()
+		day_start = timezone.make_aware(datetime.combine(selected_date, time.min))
+		day_end = day_start + timedelta(days=1)
 		queryset = Sale.objects.select_related("customer", "user", "cash_register").filter(
 			branch=self.request.user.branch,
-		).exclude(status=Sale.STATUS_DRAFT)
+		).exclude(status=Sale.STATUS_DRAFT).filter(completed_at__gte=day_start, completed_at__lt=day_end)
 		if query := self.request.GET.get("q", "").strip():
 			queryset = queryset.filter(
 				Q(number__icontains=query)
@@ -221,6 +233,7 @@ class SaleListView(SalesAccessMixin, ListView):
 		context = super().get_context_data(**kwargs)
 		context["query"] = self.request.GET.get("q", "").strip()
 		context["selected_status"] = self.request.GET.get("status", "")
+		context["selected_date"] = self.get_selected_date().isoformat()
 		context["statuses"] = [
 			(Sale.STATUS_COMPLETED, "Completada"),
 			(Sale.STATUS_CANCELLED, "Anulada"),

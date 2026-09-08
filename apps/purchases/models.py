@@ -1,10 +1,28 @@
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from apps.branches.models import Branch
 from apps.core.models import TimeStampedModel
 from apps.inventory.models import InventoryMovement
 from apps.products.models import Product
+
+
+class Supplier(TimeStampedModel):
+	name = models.CharField(max_length=150, verbose_name="nombre")
+	tax_id = models.CharField(max_length=20, blank=True, verbose_name="NIT")
+	phone = models.CharField(max_length=20, blank=True, verbose_name="teléfono")
+	email = models.EmailField(blank=True)
+	address = models.TextField(blank=True, verbose_name="dirección")
+	is_active = models.BooleanField(default=True, verbose_name="activo")
+
+	class Meta:
+		ordering = ["name"]
+		verbose_name = "proveedor"
+		verbose_name_plural = "proveedores"
+
+	def __str__(self):
+		return self.name
 
 
 class Purchase(TimeStampedModel):
@@ -19,7 +37,11 @@ class Purchase(TimeStampedModel):
 
 	number = models.CharField(max_length=20, unique=True, blank=True)
 	branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name="purchases")
+	supplier = models.ForeignKey(Supplier, null=True, blank=True, on_delete=models.PROTECT, related_name="purchases", verbose_name="proveedor")
+	purchase_date = models.DateField(default=timezone.localdate, verbose_name="fecha de compra")
+	invoice_number = models.CharField(max_length=50, blank=True, verbose_name="número de factura")
 	status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+	discount = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True, validators=[MinValueValidator(0)], verbose_name="descuento")
 	notes = models.TextField(blank=True)
 	inventory_movement = models.OneToOneField(InventoryMovement, null=True, blank=True, on_delete=models.PROTECT, related_name="purchase")
 	confirmed_at = models.DateTimeField(null=True, blank=True)

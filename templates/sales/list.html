@@ -14,8 +14,11 @@
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-3">
     <form method="get" class="row g-2">
-      <div class="col-md-8">
+      <div class="col-md-5">
         <input name="q" value="{{ query }}" class="form-control" placeholder="Buscar por número de venta o cliente">
+      </div>
+      <div class="col-md-3">
+        <input type="date" name="date" value="{{ selected_date }}" class="form-control" aria-label="Fecha de venta">
       </div>
       <div class="col-md-2">
         <select name="status" class="form-select">
