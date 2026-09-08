@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django import forms
 from apps.customers.models import Customer
+from apps.settings_app.models import CompanySettings
 from .models import Sale
 
 
@@ -25,6 +26,7 @@ class CheckoutForm(forms.Form):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
+		self.fields["payment_method"].choices = CompanySettings.load().enabled_payment_choices(Sale.PAYMENT_CHOICES)
 		self.fields["payment_method"].widget.attrs["class"] = "form-select"
 		self.fields["customer"].widget.attrs["class"] = "form-select"
 		self.fields["discount_amount"].widget.attrs.update({

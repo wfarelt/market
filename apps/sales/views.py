@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.views.generic import ListView, TemplateView
 
 from apps.products.models import Brand, Category, Product
+from apps.settings_app.models import CompanySettings
 from apps.users.models import User
 from apps.cash.models import CashRegister
 from apps.inventory.models import Stock
@@ -58,6 +59,16 @@ class PosView(PosAccessMixin, TemplateView):
 		context = super().get_context_data(**kwargs)
 		sale = self.get_sale()
 		cash_register = self.get_cash_register()
+		company_settings = CompanySettings.load()
+		payment_methods = [
+			{"code": Sale.PAYMENT_CASH, "label": "Efectivo", "icon": "cash", "style": "success"},
+			{"code": Sale.PAYMENT_QR, "label": "QR", "icon": "qr-code", "style": "primary"},
+			{"code": Sale.PAYMENT_CARD, "label": "Tarjeta", "icon": "credit-card", "style": "primary"},
+			{"code": Sale.PAYMENT_TRANSFER, "label": "Transfer.", "icon": "arrow-left-right", "style": "warning"},
+			{"code": Sale.PAYMENT_CREDIT, "label": "Crédito", "icon": "clock-history", "style": "danger"},
+		]
+		for payment_method in payment_methods:
+			payment_method["enabled"] = company_settings.is_payment_method_enabled(payment_method["code"])
 		recent_sales = Sale.objects.filter(
 			user=self.request.user,
 			branch=self.request.user.branch,
@@ -95,6 +106,8 @@ class PosView(PosAccessMixin, TemplateView):
 			categories=Category.objects.filter(is_active=True),
 			brands=Brand.objects.filter(is_active=True),
 			checkout_form=CheckoutForm(initial={"discount_amount": sale.discount_amount}),
+			payment_methods=payment_methods,
+			has_enabled_payment_methods=any(method["enabled"] for method in payment_methods),
 		)
 		return context
 

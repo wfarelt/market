@@ -7,6 +7,7 @@ from django.utils import timezone
 from apps.cash.models import CashMovement, CashRegister
 from apps.inventory.models import InventoryMovement, InventoryMovementLine
 from apps.inventory.services import post_inventory_movement
+from apps.settings_app.models import CompanySettings
 
 from .models import Sale, SaleItem
 
@@ -86,6 +87,8 @@ def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=Non
 	sale = Sale.objects.select_for_update().prefetch_related("items__product").get(pk=sale.pk)
 	if sale.status != Sale.STATUS_DRAFT:
 		raise ValidationError("La venta ya fue procesada.")
+	if not CompanySettings.load().is_payment_method_enabled(payment_method):
+		raise ValidationError("El método de pago seleccionado está deshabilitado.")
 	if sale.user_id != user.id or sale.branch_id != user.branch_id:
 		raise ValidationError("No puedes completar esta venta.")
 	cash_register = CashRegister.objects.select_for_update().filter(pk=sale.cash_register_id, user=user, branch=sale.branch, status=CashRegister.STATUS_OPEN).first()

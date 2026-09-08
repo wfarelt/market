@@ -287,12 +287,11 @@
                         <div class="mb-3">
                             <label class="form-label fw-semibold small">Método de pago</label>
                             <div class="row row-cols-2 row-cols-md-5 g-2" id="payment-method-buttons">
-                                <div class="col"><button type="button" class="btn btn-outline-success btn-sm w-100 payment-method-button" data-method="CASH"><i class="bi bi-cash me-1"></i>Efectivo</button></div>
-                                <div class="col"><button type="button" class="btn btn-outline-primary btn-sm w-100 payment-method-button" data-method="QR"><i class="bi bi-qr-code me-1"></i>QR</button></div>
-                                <div class="col"><button type="button" class="btn btn-outline-primary btn-sm w-100 payment-method-button" data-method="CARD"><i class="bi bi-credit-card me-1"></i>Tarjeta</button></div>
-                                <div class="col"><button type="button" class="btn btn-outline-warning btn-sm w-100 payment-method-button" data-method="TRANSFER"><i class="bi bi-arrow-left-right me-1"></i>Transfer.</button></div>
-                                <div class="col"><button type="button" class="btn btn-outline-danger btn-sm w-100 payment-method-button" data-method="CREDIT"><i class="bi bi-clock-history me-1"></i>Fiado</button></div>
+                                {% for payment_method in payment_methods %}
+                                <div class="col"><button type="button" class="btn btn-outline-{{ payment_method.style }} btn-sm w-100 payment-method-button" data-method="{{ payment_method.code }}" {% if not payment_method.enabled %}disabled aria-disabled="true"{% endif %}><i class="bi bi-{{ payment_method.icon }} me-1"></i>{{ payment_method.label }}</button></div>
+                                {% endfor %}
                             </div>
+                            {% if not has_enabled_payment_methods %}<div class="text-danger small mt-2">No hay métodos de pago habilitados.</div>{% endif %}
                             <div class="d-none">{{ checkout_form.payment_method }}</div>
                             {% if checkout_form.payment_method.errors %}
                             <div class="invalid-feedback d-block">{{ checkout_form.payment_method.errors|join:", " }}</div>
@@ -320,7 +319,7 @@
                         <div class="row g-2">
                             <div class="col-7">
                                 <div class="d-grid">
-                                    <button id="checkout-button" class="btn btn-success py-2" {% if not sale.items.exists %}disabled{% endif %}>
+                                    <button id="checkout-button" class="btn btn-success py-2" {% if not sale.items.exists or not has_enabled_payment_methods %}disabled{% endif %}>
                                         <i class="bi bi-cart-check me-2"></i>Cobrar <span class="small">(F8)</span>
                                     </button>
                                 </div>

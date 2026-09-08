@@ -11,6 +11,7 @@ from apps.inventory.models import Stock
 from apps.products.models import Product
 from apps.sales.models import Sale
 from apps.sales.services import add_sale_item, confirm_sale, create_sale
+from apps.settings_app.models import CompanySettings
 from apps.users.models import User
 
 
@@ -35,6 +36,16 @@ class SaleServiceTests(TestCase):
 		self.assertEqual(Stock.objects.get(product=self.product, branch=self.branch).quantity, Decimal("8"))
 		self.assertEqual(sale.inventory_movement.movement_type, "OUTPUT")
 		self.assertEqual(sale.cash_movement.movement_type, CashMovement.TYPE_SALE)
+
+	def test_confirm_sale_rejects_disabled_payment_method(self):
+		settings = CompanySettings.load()
+		settings.enable_qr_payment = False
+		settings.save(update_fields=["enable_qr_payment", "updated_at"])
+		sale = create_sale(user=self.user)
+		add_sale_item(sale=sale, product=self.product, quantity=1, user=self.user)
+
+		with self.assertRaisesMessage(ValidationError, "El método de pago seleccionado está deshabilitado."):
+			confirm_sale(sale=sale, user=self.user, payment_method=Sale.PAYMENT_QR)
 
 	def test_pos_redirects_to_cash_when_user_has_no_open_register(self):
 		self.user.cash_registers.update(status=CashRegister.STATUS_CLOSED)
@@ -70,4 +81,14 @@ class SaleServiceTests(TestCase):
 		response = self.client.get(reverse("sales:pos"))
 
 		self.assertContains(response, "Disponible: 10")
+
+	def test_pos_disables_payment_method_configured_as_unavailable(self):
+		settings = CompanySettings.load()
+		settings.enable_qr_payment = False
+		settings.save(update_fields=["enable_qr_payment", "updated_at"])
+		self.client.force_login(self.user)
+
+		response = self.client.get(reverse("sales:pos"))
+
+		self.assertContains(response, 'data-method="QR" disabled aria-disabled="true"')
 
