@@ -26,3 +26,7 @@ class CompanySettingsView(SettingsAccessMixin, UpdateView):
 		messages.success(self.request, "Configuración de la empresa actualizada.")
 		return super().form_valid(form)
 
+
+def company_settings(request):
+	return {"company_settings": CompanySettings.load()}
+

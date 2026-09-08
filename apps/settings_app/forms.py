@@ -7,7 +7,7 @@ class CompanySettingsForm(forms.ModelForm):
 	class Meta:
 		model = CompanySettings
 		fields = [
-			"name", "trade_name", "tax_id", "address", "phone", "email",
+			"name", "trade_name", "tax_id", "address", "phone", "email", "logo",
 			"enable_cash_payment", "enable_qr_payment", "enable_card_payment",
 			"enable_transfer_payment", "enable_credit_payment",
 		]

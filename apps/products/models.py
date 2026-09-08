@@ -49,9 +49,9 @@ class Product(TimeStampedModel):
 		(TYPE_FINISHED_GOOD, "Producto final"),
 	]
 
-	name = models.CharField(max_length=255)
+	name = models.CharField(max_length=255, verbose_name="nombre")
 	sku = models.CharField(max_length=50, unique=True)
-	description = models.TextField(blank=True)
+	description = models.TextField(blank=True, verbose_name="descripción")
 	product_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_FINISHED_GOOD, verbose_name="tipo de producto")
 	image = models.ImageField(upload_to="products/", blank=True, verbose_name="imagen")
 	category = models.ForeignKey(

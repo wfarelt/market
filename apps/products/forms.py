@@ -48,4 +48,16 @@ class ProductForm(StyledModelForm):
 			"list_price",
 			"is_active",
 		]
+		labels = {
+			"name": "Nombre",
+			"sku": "Código SKU",
+			"description": "Descripción",
+			"product_type": "Tipo de producto",
+			"image": "Imagen",
+			"category": "Categoría",
+			"brand": "Marca",
+			"unit_measure": "Unidad de medida",
+			"list_price": "Precio de venta",
+			"is_active": "Activo",
+		}
 

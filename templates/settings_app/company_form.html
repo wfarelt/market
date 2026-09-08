@@ -9,7 +9,7 @@
 
 <div class="card border-0 shadow-sm">
 	<div class="card-body p-4">
-		<form method="post" novalidate>
+		<form method="post" enctype="multipart/form-data" novalidate>
 			{% csrf_token %}
 			<div class="row g-3">
 				{% for field in form %}
@@ -17,6 +17,7 @@
 				<div class="col-12"><hr class="my-2"><h6 class="fw-semibold mb-0">Métodos de pago del punto de venta</h6><p class="text-muted small mb-0">Selecciona los medios disponibles para realizar cobros.</p></div>
 				{% endif %}
 				<div class="{% if field.field.widget.input_type == 'checkbox' %}col-sm-6 col-lg{% elif field.name == 'address' %}col-12{% else %}col-md-6{% endif %}">
+					{% if field.name == 'logo' and form.instance.logo %}<img src="{{ form.instance.logo.url }}" alt="Logo de {{ form.instance.name }}" class="img-thumbnail d-block mb-2" style="max-height:80px;">{% endif %}
 					{% if field.field.widget.input_type == 'checkbox' %}
 					<div class="form-check mt-2">
 						{{ field }}

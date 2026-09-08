@@ -12,6 +12,7 @@ class CompanySettings(TimeStampedModel):
 	address = models.TextField(blank=True, verbose_name="dirección")
 	phone = models.CharField(max_length=20, blank=True, verbose_name="teléfono")
 	email = models.EmailField(blank=True)
+	logo = models.ImageField(upload_to="company/", blank=True, verbose_name="logo")
 	enable_cash_payment = models.BooleanField(default=True, verbose_name="efectivo")
 	enable_qr_payment = models.BooleanField(default=True, verbose_name="QR")
 	enable_card_payment = models.BooleanField(default=True, verbose_name="tarjeta")

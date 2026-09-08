@@ -1,11 +1,27 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.views import PasswordChangeView
 from django.http import Http404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, UpdateView
 
 from .forms import UserManagementCreationForm, UserManagementForm
 from .models import User
+
+
+class ProfilePasswordChangeView(LoginRequiredMixin, PasswordChangeView):
+	template_name = "users/profile.html"
+	success_url = reverse_lazy("users:profile")
+
+	def get_form(self, form_class=None):
+		form = super().get_form(form_class)
+		for field in form.fields.values():
+			field.widget.attrs["class"] = "form-control"
+		return form
+
+	def form_valid(self, form):
+		messages.success(self.request, "Contraseña actualizada correctamente.")
+		return super().form_valid(form)
 
 
 class UserManagementAccessMixin(LoginRequiredMixin, UserPassesTestMixin):
