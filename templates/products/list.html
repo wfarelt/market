@@ -5,14 +5,24 @@
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-4">
   <div>
-    <h5 class="mb-1 fw-semibold">Productos</h5>
-    <div class="small text-muted">
-      <a href="{% url 'products:category-list' %}">Categorías</a> ·
-      <a href="{% url 'products:brand-list' %}">Marcas</a> ·
-      <a href="{% url 'products:unit-measure-list' %}">Unidades de medida</a>
-    </div>
+    <h5 class="mb-0 fw-semibold">Productos</h5>
+    <span class="text-muted small">Listado de productos disponibles</span>
   </div>
-  <a href="{% url 'products:create' %}" class="btn btn-primary btn-sm">+ Nuevo</a>
+
+  <div class="d-flex gap-2">
+    <a href="{% url 'products:category-list' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-building me-1"></i>Categorías
+    </a>
+    <a href="{% url 'products:brand-list' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-tags me-1"></i>Marcas
+    </a>
+    <a href="{% url 'products:unit-measure-list' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-rulers me-1"></i>Unidades de medida
+    </a>
+    <a href="{% url 'products:create' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo
+    </a>
+  </div>
 </div>
 
 <div class="card border-0 shadow-sm">
