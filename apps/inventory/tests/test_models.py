@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -7,6 +8,7 @@ from django.urls import reverse
 
 from apps.branches.models import Branch
 from apps.inventory.models import InventoryMovement, InventoryMovementLine, Stock
+from apps.inventory.forms import InventoryMovementFilterForm
 from apps.inventory.services import post_inventory_movement
 from apps.products.models import Product
 from apps.users.models import User
@@ -129,4 +131,52 @@ class InventoryMovementServiceTests(TestCase):
 		self.assertRedirects(response, reverse("inventory:movement-detail", args=[movement.pk]))
 		self.client.post(reverse("inventory:movement-post", args=[movement.pk]))
 		self.assertEqual(Stock.objects.get(product=self.product, branch=self.branch).quantity, Decimal("12"))
+
+
+class InventoryMovementFilterTests(TestCase):
+	def setUp(self):
+		self.branch = Branch.objects.create(name="Central", code="CENTRAL")
+		self.other_branch = Branch.objects.create(name="Norte", code="NORTE")
+		self.admin = User.objects.create_user(
+			username="admin",
+			password="test-password",
+			branch=self.branch,
+			role=User.ROLE_ADMIN,
+		)
+		self.client.force_login(self.admin)
+		self.matching_movement = InventoryMovement.objects.create(
+			movement_type=InventoryMovement.TYPE_ENTRY,
+			movement_date=date(2026, 9, 10),
+			branch=self.branch,
+			status=InventoryMovement.STATUS_POSTED,
+			notes="Recepción proveedor",
+		)
+		InventoryMovement.objects.create(
+			movement_type=InventoryMovement.TYPE_OUTPUT,
+			movement_date=date(2026, 9, 20),
+			branch=self.other_branch,
+			notes="Salida dañados",
+		)
+
+	def test_list_applies_combined_filters(self):
+		response = self.client.get(
+			reverse("inventory:movement-list"),
+			{
+				"start_date": "2026-09-01",
+				"end_date": "2026-09-15",
+				"movement_type": InventoryMovement.TYPE_ENTRY,
+				"branch": self.branch.pk,
+				"status": InventoryMovement.STATUS_POSTED,
+			},
+		)
+
+		self.assertEqual(list(response.context["movements"]), [self.matching_movement])
+
+	def test_list_searches_notes_and_rejects_invalid_date_range(self):
+		response = self.client.get(reverse("inventory:movement-list"), {"q": "dañados"})
+		self.assertEqual(response.context["movements"].count(), 1)
+		self.assertEqual(response.context["movements"].first().branch, self.other_branch)
+
+		filter_form = InventoryMovementFilterForm({"start_date": "2026-09-20", "end_date": "2026-09-01"})
+		self.assertFalse(filter_form.is_valid())
 

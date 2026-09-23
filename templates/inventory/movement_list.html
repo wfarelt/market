@@ -3,21 +3,154 @@
 {% block title %}Movimientos{% endblock %}
 
 {% block content %}
+
 <div class="d-flex align-items-center justify-content-between mb-4">
-  <h5 class="mb-0 fw-semibold">Movimientos de inventario</h5>
-  <a href="{% url 'inventory:movement-create' %}" class="btn btn-primary btn-sm">+ Nuevo</a>
+    <h5 class="mb-0 fw-semibold">Movimientos de inventario</h5>
+    <a href="{% url 'inventory:movement-create' %}" class="btn btn-primary btn-sm">
+        + Nuevo
+    </a>
 </div>
 
-<div class="card border-0 shadow-sm"><div class="card-body p-0"><div class="table-responsive">
-  <table class="table table-hover align-middle mb-0">
-    <thead class="table-light"><tr><th>Fecha</th><th>Tipo</th><th>Sucursal</th><th>Estado</th><th>Registró</th></tr></thead>
-    <tbody>
-      {% for movement in movements %}
-      <tr><td>{{ movement.movement_date|date:"d/m/Y" }}</td><td>{{ movement.get_movement_type_display }}</td><td>{{ movement.branch.name }}</td><td>{% if movement.status == 'POSTED' %}<span class="badge rounded-pill bg-success">Confirmado</span>{% else %}<span class="badge rounded-pill bg-secondary">Borrador</span>{% endif %}</td><td><a href="{% url 'inventory:movement-detail' movement.pk %}" class="btn btn-sm btn-outline-secondary" aria-label="Ver movimiento"><i class="bi bi-eye"></i></a></td></tr>
-      {% empty %}
-      <tr><td colspan="5" class="text-center text-muted py-4">No hay movimientos registrados.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>{% include "partials/_pagination.html" %}</div></div>
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+        <form method="get" class="row g-3 align-items-end">
+
+            <div class="col-sm-6 col-lg-3">
+                <label class="form-label" for="{{ filter_form.status.id_for_label }}">
+                    {{ filter_form.status.label }}
+                </label>
+                {{ filter_form.status }}
+            </div>
+
+            <div class="col-sm-6 col-lg-2">
+                <label class="form-label" for="{{ filter_form.start_date.id_for_label }}">
+                    {{ filter_form.start_date.label }}
+                </label>
+                {{ filter_form.start_date }}
+            </div>
+
+            <div class="col-sm-6 col-lg-2">
+                <label class="form-label" for="{{ filter_form.end_date.id_for_label }}">
+                    {{ filter_form.end_date.label }}
+                </label>
+                {{ filter_form.end_date }}
+            </div>
+
+            <div class="col-sm-6 col-lg-2">
+                <label class="form-label" for="{{ filter_form.movement_type.id_for_label }}">
+                    {{ filter_form.movement_type.label }}
+                </label>
+                {{ filter_form.movement_type }}
+            </div>
+
+            <div class="col-sm-6 col-lg-3">
+                <label class="form-label" for="{{ filter_form.branch.id_for_label }}">
+                    {{ filter_form.branch.label }}
+                </label>
+                {{ filter_form.branch }}
+            </div>
+
+            <div class="col-lg-3">
+                <label class="form-label" for="{{ filter_form.q.id_for_label }}">
+                    {{ filter_form.q.label }}
+                </label>
+                {{ filter_form.q }}
+            </div>
+
+            <div class="col-sm-6 col-lg-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search me-1"></i>
+                    Filtrar
+                </button>
+
+                <a href="{% url 'inventory:movement-list' %}" class="btn btn-outline-secondary">
+                    Limpiar
+                </a>
+            </div>
+
+            {% if filter_form.non_field_errors %}
+                <div class="col-12">
+                    <div class="invalid-feedback d-block">
+                        {{ filter_form.non_field_errors|join:", " }}
+                    </div>
+                </div>
+            {% endif %}
+
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Sucursal</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for movement in movements %}
+                        <tr>
+                            <td>
+                                {{ movement.movement_date|date:"d/m/Y" }}
+                            </td>
+
+                            <td>
+                                {{ movement.get_movement_type_display }}
+                            </td>
+
+                            <td>
+                                {{ movement.branch.name }}
+                            </td>
+
+                            <td>
+                                {% if movement.status == "POSTED" %}
+                                    <span class="badge rounded-pill bg-success">
+                                        Confirmado
+                                    </span>
+                                {% else %}
+                                    <span class="badge rounded-pill bg-secondary">
+                                        Borrador
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <a
+                                    href="{% url 'inventory:movement-detail' movement.pk %}"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    aria-label="Ver movimiento"
+                                >
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                No hay movimientos registrados.
+                            </td>
+                        </tr>
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+        </div>
+
+        {% include "partials/_pagination.html" %}
+
+    </div>
+</div>
+
 {% endblock %}
+```

@@ -3,6 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import Http404, JsonResponse
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views import View
@@ -10,7 +11,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.users.models import User
 
-from .forms import InventoryMovementForm, InventoryMovementLineFormSet, StockInitialForm
+from .forms import InventoryMovementFilterForm, InventoryMovementForm, InventoryMovementLineFormSet, StockInitialForm
 from .models import InventoryMovement, Stock
 from .services import post_inventory_movement
 
@@ -60,6 +61,37 @@ class InventoryMovementListView(StockAccessMixin, ListView):
 	context_object_name = "movements"
 	paginate_by = 20
 	queryset = InventoryMovement.objects.select_related("branch", "created_by")
+
+	def get_queryset(self):
+		queryset = super().get_queryset()
+		self.filter_form = InventoryMovementFilterForm(self.request.GET or None)
+		if not self.filter_form.is_valid():
+			return queryset.none()
+		filters = self.filter_form.cleaned_data
+		if filters["q"]:
+			query = filters["q"]
+			queryset = queryset.filter(
+				Q(notes__icontains=query)
+				| Q(branch__name__icontains=query)
+				| Q(branch__code__icontains=query)
+				| Q(created_by__username__icontains=query)
+			).distinct()
+		if filters["start_date"]:
+			queryset = queryset.filter(movement_date__gte=filters["start_date"])
+		if filters["end_date"]:
+			queryset = queryset.filter(movement_date__lte=filters["end_date"])
+		if filters["movement_type"]:
+			queryset = queryset.filter(movement_type=filters["movement_type"])
+		if filters["branch"]:
+			queryset = queryset.filter(branch=filters["branch"])
+		if filters["status"]:
+			queryset = queryset.filter(status=filters["status"])
+		return queryset
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context["filter_form"] = getattr(self, "filter_form", InventoryMovementFilterForm(self.request.GET or None))
+		return context
 
 
 class StockAvailabilityView(StockAccessMixin, View):
