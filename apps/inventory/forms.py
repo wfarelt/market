@@ -1,5 +1,6 @@
 from django import forms
 from django.forms import BaseInlineFormSet, inlineformset_factory
+from django.utils import timezone
 
 from .models import InventoryMovement, InventoryMovementLine, Stock
 
@@ -21,7 +22,7 @@ class StockInitialForm(forms.ModelForm):
 class InventoryMovementForm(forms.ModelForm):
 	class Meta:
 		model = InventoryMovement
-		fields = ["movement_type", "branch", "notes"]
+		fields = ["movement_date", "movement_type", "branch", "notes"]
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -32,6 +33,12 @@ class InventoryMovementForm(forms.ModelForm):
 		self.fields["movement_type"].widget.attrs["class"] = "form-select"
 		self.fields["branch"].widget.attrs["class"] = "form-select"
 		self.fields["notes"].widget.attrs["class"] = "form-control"
+		self.fields["notes"].widget.attrs["rows"] = 2
+		self.fields["movement_date"].widget.attrs["class"] = "form-control"
+		self.fields["movement_date"].required = False
+
+	def clean_movement_date(self):
+		return self.cleaned_data.get("movement_date") or timezone.localdate()
 
 
 class InventoryMovementLineForm(forms.ModelForm):

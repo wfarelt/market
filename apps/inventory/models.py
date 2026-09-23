@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from apps.branches.models import Branch
 from apps.core.models import TimeStampedModel
@@ -64,6 +65,7 @@ class InventoryMovement(TimeStampedModel):
 	]
 
 	movement_type = models.CharField(max_length=20, choices=TYPE_CHOICES, verbose_name="tipo")
+	movement_date = models.DateField(default=timezone.localdate, verbose_name="fecha")
 	branch = models.ForeignKey(
 		Branch,
 		on_delete=models.PROTECT,

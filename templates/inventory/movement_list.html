@@ -13,7 +13,7 @@
     <thead class="table-light"><tr><th>Fecha</th><th>Tipo</th><th>Sucursal</th><th>Estado</th><th>Registró</th></tr></thead>
     <tbody>
       {% for movement in movements %}
-      <tr><td>{{ movement.created_at|date:"d/m/Y H:i" }}</td><td>{{ movement.get_movement_type_display }}</td><td>{{ movement.branch.name }}</td><td>{% if movement.status == 'POSTED' %}<span class="badge rounded-pill bg-success">Confirmado</span>{% else %}<span class="badge rounded-pill bg-secondary">Borrador</span>{% endif %}</td><td><a href="{% url 'inventory:movement-detail' movement.pk %}" class="btn btn-sm btn-outline-secondary" aria-label="Ver movimiento"><i class="bi bi-eye"></i></a></td></tr>
+      <tr><td>{{ movement.movement_date|date:"d/m/Y" }}</td><td>{{ movement.get_movement_type_display }}</td><td>{{ movement.branch.name }}</td><td>{% if movement.status == 'POSTED' %}<span class="badge rounded-pill bg-success">Confirmado</span>{% else %}<span class="badge rounded-pill bg-secondary">Borrador</span>{% endif %}</td><td><a href="{% url 'inventory:movement-detail' movement.pk %}" class="btn btn-sm btn-outline-secondary" aria-label="Ver movimiento"><i class="bi bi-eye"></i></a></td></tr>
       {% empty %}
       <tr><td colspan="5" class="text-center text-muted py-4">No hay movimientos registrados.</td></tr>
       {% endfor %}
