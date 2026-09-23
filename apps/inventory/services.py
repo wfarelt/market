@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -23,9 +21,11 @@ def post_inventory_movement(movement):
 		stock, _ = Stock.objects.select_for_update().get_or_create(
 			product=line.product,
 			branch=movement.branch,
-			defaults={"quantity": Decimal("0"), "created_by": movement.created_by},
+			defaults={"quantity": 0, "created_by": movement.created_by},
 		)
 		quantity_change = _quantity_change(movement, line)
+		if quantity_change % 1:
+			raise ValidationError("La cantidad del movimiento debe ser un número entero.")
 		new_quantity = stock.quantity + quantity_change
 		if new_quantity < 0:
 			raise ValidationError(

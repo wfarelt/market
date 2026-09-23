@@ -8,7 +8,7 @@ from django.urls import reverse
 
 from apps.branches.models import Branch
 from apps.inventory.models import InventoryMovement, InventoryMovementLine, Stock
-from apps.inventory.forms import InventoryMovementFilterForm
+from apps.inventory.forms import InventoryMovementFilterForm, StockInitialForm
 from apps.inventory.services import post_inventory_movement
 from apps.products.models import Product
 from apps.users.models import User
@@ -46,6 +46,29 @@ class StockModelTests(TestCase):
 
 		with self.assertRaises(ValidationError):
 			stock.full_clean()
+
+	def test_initial_stock_form_requires_an_integer_quantity(self):
+		form = StockInitialForm(
+			data={"product": self.product.pk, "branch": self.central.pk, "quantity": "2.5"}
+		)
+
+		self.assertFalse(form.is_valid())
+		self.assertIn("quantity", form.errors)
+
+	def test_stock_list_filters_by_branch(self):
+		central_stock = Stock.objects.create(product=self.product, branch=self.central, quantity=10)
+		Stock.objects.create(product=self.product, branch=self.north, quantity=20)
+		admin = User.objects.create_user(
+			username="admin",
+			password="test-password",
+			branch=self.central,
+			role=User.ROLE_ADMIN,
+		)
+		self.client.force_login(admin)
+
+		response = self.client.get(reverse("inventory:list"), {"branch": self.central.pk})
+
+		self.assertEqual(list(response.context["stocks"]), [central_stock])
 
 
 class InventoryMovementServiceTests(TestCase):

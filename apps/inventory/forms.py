@@ -35,6 +35,19 @@ class InventoryMovementFilterForm(forms.Form):
 		return cleaned_data
 
 
+class StockFilterForm(forms.Form):
+	branch = forms.ModelChoiceField(
+		queryset=Branch.objects.filter(is_active=True),
+		required=False,
+		label="Sucursal",
+		empty_label="Todas las sucursales",
+	)
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.fields["branch"].widget.attrs["class"] = "form-select"
+
+
 class StockInitialForm(forms.ModelForm):
 	class Meta:
 		model = Stock
@@ -47,6 +60,7 @@ class StockInitialForm(forms.ModelForm):
 				field.widget.attrs["class"] = "form-select"
 			else:
 				field.widget.attrs["class"] = "form-control"
+		self.fields["quantity"].widget.attrs["step"] = "1"
 
 
 class InventoryMovementForm(forms.ModelForm):

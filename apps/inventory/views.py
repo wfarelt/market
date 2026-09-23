@@ -11,7 +11,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.users.models import User
 
-from .forms import InventoryMovementFilterForm, InventoryMovementForm, InventoryMovementLineFormSet, StockInitialForm
+from .forms import InventoryMovementFilterForm, InventoryMovementForm, InventoryMovementLineFormSet, StockFilterForm, StockInitialForm
 from .models import InventoryMovement, Stock
 from .services import post_inventory_movement
 
@@ -32,10 +32,17 @@ class StockListView(StockAccessMixin, ListView):
 
 	def get_queryset(self):
 		queryset = super().get_queryset()
-		branch_id = self.request.GET.get("branch")
-		if branch_id:
-			queryset = queryset.filter(branch_id=branch_id)
+		self.filter_form = StockFilterForm(self.request.GET or None)
+		if not self.filter_form.is_valid():
+			return queryset.none()
+		if branch := self.filter_form.cleaned_data["branch"]:
+			queryset = queryset.filter(branch=branch)
 		return queryset
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context["filter_form"] = getattr(self, "filter_form", StockFilterForm(self.request.GET or None))
+		return context
 
 
 class StockCreateView(StockAccessMixin, CreateView):

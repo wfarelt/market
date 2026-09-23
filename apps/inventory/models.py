@@ -21,11 +21,8 @@ class Stock(TimeStampedModel):
 		related_name="stocks",
 		verbose_name="sucursal",
 	)
-	quantity = models.DecimalField(
-		max_digits=15,
-		decimal_places=2,
+	quantity = models.PositiveIntegerField(
 		default=0,
-		validators=[MinValueValidator(0)],
 		verbose_name="existencia",
 	)
 
