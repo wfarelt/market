@@ -16,6 +16,11 @@ class CustomerForm(forms.ModelForm):
 				field.widget.attrs["class"] = "form-control"
 
 
+class CashierCustomerForm(CustomerForm):
+	class Meta(CustomerForm.Meta):
+		fields = ["first_name", "last_name", "id_document", "tax_id", "phone", "address", "email"]
+
+
 class CreditPaymentForm(forms.Form):
 	amount = forms.DecimalField(
 		max_digits=12,

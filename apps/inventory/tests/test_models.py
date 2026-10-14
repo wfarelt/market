@@ -25,15 +25,19 @@ class StockModelTests(TestCase):
 			product=self.product,
 			branch=self.central,
 			quantity=Decimal("100"),
+			location="Pasillo 1, estante A",
 		)
 		north_stock = Stock.objects.create(
 			product=self.product,
 			branch=self.north,
 			quantity=Decimal("25"),
+			location="Pasillo 3",
 		)
 
 		self.assertEqual(central_stock.quantity, Decimal("100"))
 		self.assertEqual(north_stock.quantity, Decimal("25"))
+		self.assertEqual(central_stock.location, "Pasillo 1, estante A")
+		self.assertEqual(north_stock.location, "Pasillo 3")
 
 	def test_product_branch_pair_must_be_unique(self):
 		Stock.objects.create(product=self.product, branch=self.central, quantity=1)
@@ -49,11 +53,75 @@ class StockModelTests(TestCase):
 
 	def test_initial_stock_form_requires_an_integer_quantity(self):
 		form = StockInitialForm(
-			data={"product": self.product.pk, "branch": self.central.pk, "quantity": "2.5"}
+			data={"product": self.product.pk, "branch": self.central.pk, "quantity": "2.5", "location": "Pasillo 1"}
 		)
 
 		self.assertFalse(form.is_valid())
 		self.assertIn("quantity", form.errors)
+
+	def test_initial_stock_duplicate_shows_explanation_and_preserves_existing_stock(self):
+		Stock.objects.create(product=self.product, branch=self.central, quantity=10)
+		admin = User.objects.create_user(
+			username="admin",
+			password="test-password",
+			branch=self.central,
+			role=User.ROLE_ADMIN,
+		)
+		self.client.force_login(admin)
+
+		response = self.client.post(
+			reverse("inventory:create"),
+			{
+				"product": self.product.pk,
+				"branch": self.central.pk,
+				"quantity": "20",
+				"location": "Pasillo 1",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Ya existe una existencia para este producto")
+		self.assertEqual(Stock.objects.count(), 1)
+		self.assertEqual(Stock.objects.get().quantity, 10)
+
+	def test_admin_can_update_stock_location_without_changing_quantity(self):
+		stock = Stock.objects.create(product=self.product, branch=self.central, quantity=12)
+		admin = User.objects.create_user(
+			username="admin",
+			password="test-password",
+			branch=self.central,
+			role=User.ROLE_ADMIN,
+		)
+		self.client.force_login(admin)
+
+		response = self.client.post(
+			reverse("inventory:stock-location-update", args=[stock.pk]),
+			{"location": "Pasillo 2, estante B4"},
+		)
+
+		self.assertRedirects(response, reverse("inventory:list"))
+		stock.refresh_from_db()
+		self.assertEqual(stock.location, "Pasillo 2, estante B4")
+		self.assertEqual(stock.quantity, 12)
+
+	def test_warehouse_user_cannot_update_location_in_another_branch(self):
+		stock = Stock.objects.create(product=self.product, branch=self.central, quantity=12)
+		warehouse_user = User.objects.create_user(
+			username="warehouse",
+			password="test-password",
+			branch=self.north,
+			role=User.ROLE_ALMACENERO,
+		)
+		self.client.force_login(warehouse_user)
+
+		response = self.client.post(
+			reverse("inventory:stock-location-update", args=[stock.pk]),
+			{"location": "Pasillo 2, estante B4"},
+		)
+
+		self.assertEqual(response.status_code, 404)
+		stock.refresh_from_db()
+		self.assertEqual(stock.location, "")
 
 	def test_stock_list_filters_by_branch(self):
 		central_stock = Stock.objects.create(product=self.product, branch=self.central, quantity=10)
@@ -69,6 +137,101 @@ class StockModelTests(TestCase):
 		response = self.client.get(reverse("inventory:list"), {"branch": self.central.pk})
 
 		self.assertEqual(list(response.context["stocks"]), [central_stock])
+
+	def test_stock_list_defaults_to_users_branch_on_initial_load(self):
+		central_stock = Stock.objects.create(product=self.product, branch=self.central, quantity=10)
+		Stock.objects.create(product=self.product, branch=self.north, quantity=20)
+		admin = User.objects.create_user(
+			username="admin-default-branch",
+			password="test-password",
+			branch=self.central,
+			role=User.ROLE_ADMIN,
+		)
+		self.client.force_login(admin)
+
+		response = self.client.get(reverse("inventory:list"))
+
+		self.assertEqual(list(response.context["stocks"]), [central_stock])
+		self.assertEqual(response.context["filter_form"].cleaned_data["branch"], self.central)
+
+	def test_stock_list_can_filter_to_positive_stock(self):
+		in_stock = Stock.objects.create(product=self.product, branch=self.central, quantity=10)
+		zero_stock_product = Product.objects.create(name="Jugo", sku="JUGO-1")
+		Stock.objects.create(product=zero_stock_product, branch=self.central, quantity=0)
+		admin = User.objects.create_user(
+			username="admin-positive-stock",
+			password="test-password",
+			branch=self.central,
+			role=User.ROLE_ADMIN,
+		)
+		self.client.force_login(admin)
+
+		response = self.client.get(reverse("inventory:list"), {"with_stock": "on"})
+
+		self.assertEqual(list(response.context["stocks"]), [in_stock])
+
+	def test_cashier_sees_only_own_branch_inventory_even_if_other_branch_is_requested(self):
+		own_stock = Stock.objects.create(product=self.product, branch=self.central, quantity=10)
+		Stock.objects.create(product=self.product, branch=self.north, quantity=20)
+		cashier = User.objects.create_user(
+			username="cashier-stock-list",
+			password="test-password",
+			branch=self.central,
+			role=User.ROLE_CAJERO,
+		)
+		self.client.force_login(cashier)
+
+		response = self.client.get(reverse("inventory:list"), {"branch": self.north.pk})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(list(response.context["stocks"]), [own_stock])
+		self.assertContains(response, reverse("inventory:stock-location-update", args=[own_stock.pk]))
+		self.assertNotContains(response, reverse("inventory:create"))
+		self.assertNotContains(response, "Todas las sucursales")
+
+	def test_cashier_cannot_access_inventory_write_and_movement_routes(self):
+		cashier = User.objects.create_user(
+			username="cashier-restricted-routes",
+			password="test-password",
+			branch=self.central,
+			role=User.ROLE_CAJERO,
+		)
+		self.client.force_login(cashier)
+
+		for url in [
+			reverse("inventory:create"),
+			reverse("inventory:movement-list"),
+			reverse("inventory:movement-create"),
+		]:
+			with self.subTest(url=url):
+				self.assertEqual(self.client.get(url).status_code, 403)
+
+	def test_cashier_can_update_location_only_in_own_branch(self):
+		own_stock = Stock.objects.create(product=self.product, branch=self.central, quantity=12)
+		other_product = Product.objects.create(name="Jugo", sku="JUGO-1")
+		other_stock = Stock.objects.create(product=other_product, branch=self.north, quantity=5)
+		cashier = User.objects.create_user(
+			username="cashier-location",
+			password="test-password",
+			branch=self.central,
+			role=User.ROLE_CAJERO,
+		)
+		self.client.force_login(cashier)
+
+		response = self.client.post(
+			reverse("inventory:stock-location-update", args=[own_stock.pk]),
+			{"location": "Pasillo 4, estante C"},
+		)
+		self.assertRedirects(response, reverse("inventory:list"))
+		own_stock.refresh_from_db()
+		self.assertEqual(own_stock.location, "Pasillo 4, estante C")
+		self.assertEqual(own_stock.quantity, 12)
+
+		response = self.client.post(
+			reverse("inventory:stock-location-update", args=[other_stock.pk]),
+			{"location": "No autorizada"},
+		)
+		self.assertEqual(response.status_code, 404)
 
 
 class InventoryMovementServiceTests(TestCase):

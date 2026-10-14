@@ -26,13 +26,13 @@
       </a>
     </li>
     {% endif %}
-    {% if request.user.role != 'cajero' %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'inventory' and request.resolver_match.url_name == 'list' %}fw-semibold{% endif %}"
          href="{% url 'inventory:list' %}">
         <i class="bi bi-archive me-2"></i>Inventario
       </a>
     </li>
+    {% if request.user.role != 'cajero' %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'inventory' and request.resolver_match.url_name == 'movement-list' %}fw-semibold{% endif %}"
          href="{% url 'inventory:movement-list' %}">

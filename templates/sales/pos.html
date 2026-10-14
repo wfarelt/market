@@ -86,7 +86,7 @@
                             <div class="w-50 p-2 d-flex flex-column" style="min-width:0;">
                                 <strong class="small lh-sm">{{ product.name }}</strong>
                                 <small class="text-muted text-truncate">{{ product.sku }}</small>
-                                <small class="mb-1 {% if product.available_stock > 0 %}text-success{% else %}text-danger{% endif %}">Disp.: {{ product.available_stock }}</small>
+                                <small class="mb-1 {% if product.available_stock > 0 %}text-success{% else %}text-danger{% endif %}">Disponible: {{ product.available_stock }}</small>
                                 <div class="d-flex justify-content-between align-items-center mt-auto gap-1">
                                     <strong class="font-monospace small text-nowrap">{{ product.list_price }} Bs</strong>
                                     <form method="post" action="{% url 'sales:add-item' product.pk %}">
@@ -260,7 +260,7 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <label class="form-label fw-semibold small mb-0" for="{{ checkout_form.customer.id_for_label }}">Cliente</label>
-                                <a href="{% url 'customers:create' %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Nuevo cliente</a>
+                                <a href="{% url 'customers:create' %}?source=pos" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Nuevo cliente</a>
                             </div>
                             {{ checkout_form.customer }}
                             {% if checkout_form.customer.errors %}

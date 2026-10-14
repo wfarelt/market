@@ -107,7 +107,12 @@ class PosView(PosAccessMixin, TemplateView):
 			brand_id=brand_id,
 			categories=Category.objects.filter(is_active=True),
 			brands=Brand.objects.filter(is_active=True),
-			checkout_form=CheckoutForm(initial={"discount_amount": sale.discount_amount}),
+			checkout_form=CheckoutForm(
+				initial={
+					"discount_amount": sale.discount_amount,
+					"customer": self.request.GET.get("customer", ""),
+				}
+			),
 			payment_methods=payment_methods,
 			has_enabled_payment_methods=any(method["enabled"] for method in payment_methods),
 		)

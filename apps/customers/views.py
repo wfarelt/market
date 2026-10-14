@@ -4,9 +4,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
-from .forms import CreditPaymentForm, CustomerForm
+from apps.users.models import User
+
+from .forms import CashierCustomerForm, CreditPaymentForm, CustomerForm
 from .models import Credit, Customer
-from .permissions import CustomerManagementAccessMixin, CustomerReadPaymentAccessMixin
+from .permissions import CustomerCreationAccessMixin, CustomerManagementAccessMixin, CustomerReadPaymentAccessMixin
 from .selectors import get_credits_list, get_customer_account_statement, get_customers_list
 from .services import (
 	create_customer,
@@ -32,7 +34,7 @@ class CustomerListView(CustomerReadPaymentAccessMixin, ListView):
 		return ctx
 
 
-class CustomerCreateView(CustomerManagementAccessMixin, CreateView):
+class CustomerCreateView(CustomerCreationAccessMixin, CreateView):
 	model = Customer
 	form_class = CustomerForm
 	template_name = "customers/customer_form.html"
@@ -40,18 +42,30 @@ class CustomerCreateView(CustomerManagementAccessMixin, CreateView):
 
 	def form_valid(self, form):
 		try:
-			create_customer(user=self.request.user, **form.cleaned_data)
+			self.object = create_customer(user=self.request.user, **form.cleaned_data)
 		except ValidationError as error:
 			for field, errors in error.message_dict.items():
 				for err in errors:
 					form.add_error(field if field in form.fields else None, err)
 			return self.form_invalid(form)
 		messages.success(self.request, "Cliente registrado correctamente.")
+		if self.is_pos_source():
+			return redirect(f"{reverse_lazy('sales:pos')}?customer={self.object.pk}")
 		return redirect(self.success_url)
+
+	def get_form_class(self):
+		if self.request.user.role == User.ROLE_CAJERO:
+			return CashierCustomerForm
+		return self.form_class
+
+	def is_pos_source(self):
+		return (self.request.POST.get("source") or self.request.GET.get("source")) == "pos"
 
 	def get_context_data(self, **kwargs):
 		ctx = super().get_context_data(**kwargs)
 		ctx["title"] = "Nuevo Cliente"
+		ctx["source"] = "pos" if self.is_pos_source() else ""
+		ctx["return_url"] = reverse_lazy("sales:pos") if ctx["source"] else self.success_url
 		return ctx
 
 

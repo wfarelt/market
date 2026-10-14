@@ -36,7 +36,7 @@ class DashboardViewTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertNotContains(response, reverse("branches:list"))
 		self.assertNotContains(response, reverse("products:list"))
-		self.assertNotContains(response, reverse("inventory:list"))
+		self.assertContains(response, reverse("inventory:list"))
 		self.assertNotContains(response, reverse("inventory:movement-list"))
 		self.assertNotContains(response, reverse("transfers:list"))
 		self.assertContains(response, reverse("cash:list"))

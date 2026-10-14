@@ -42,16 +42,20 @@ class StockFilterForm(forms.Form):
 		label="Sucursal",
 		empty_label="Todas las sucursales",
 	)
+	with_stock = forms.BooleanField(required=False, label="Solo con stock")
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.fields["branch"].widget.attrs["class"] = "form-select"
+		self.fields["with_stock"].widget.attrs.update(
+			{"class": "form-check-input", "role": "switch"}
+		)
 
 
 class StockInitialForm(forms.ModelForm):
 	class Meta:
 		model = Stock
-		fields = ["product", "branch", "quantity"]
+		fields = ["product", "branch", "quantity", "location"]
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -61,6 +65,30 @@ class StockInitialForm(forms.ModelForm):
 			else:
 				field.widget.attrs["class"] = "form-control"
 		self.fields["quantity"].widget.attrs["step"] = "1"
+		self.fields["location"].widget.attrs["placeholder"] = "Ej.: Pasillo 2, estante A3"
+
+	def clean(self):
+		cleaned_data = super().clean()
+		product = cleaned_data.get("product")
+		branch = cleaned_data.get("branch")
+		if product and branch and Stock.objects.filter(product=product, branch=branch).exists():
+			raise forms.ValidationError(
+				"Ya existe una existencia para este producto en la sucursal seleccionada. "
+				"Registra los cambios de cantidad desde Movimientos de inventario."
+			)
+		return cleaned_data
+
+
+class StockLocationForm(forms.ModelForm):
+	class Meta:
+		model = Stock
+		fields = ["location"]
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.fields["location"].widget.attrs.update(
+			{"class": "form-control", "placeholder": "Ej.: Pasillo 2, estante A3"}
+		)
 
 
 class InventoryMovementForm(forms.ModelForm):
