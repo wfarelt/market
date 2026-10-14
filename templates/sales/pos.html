@@ -139,8 +139,8 @@
                             <div class="col"><kbd>F4</kbd><small class="d-block text-muted">Cliente</small></div>
                             <div class="col"><kbd>F8</kbd><small class="d-block text-muted">Cobrar</small></div>
                             <div class="col"><kbd>ESC</kbd><small class="d-block text-muted">Cancelar</small></div>
-                            <div class="col"><kbd>+</kbd><small class="d-block text-muted">Aumentar</small></div>
-                            <div class="col"><kbd>-</kbd><small class="d-block text-muted">Disminuir</small></div>
+                            <div class="col"><kbd>+</kbd><small class="d-block text-muted">Aumentar línea activa</small></div>
+                            <div class="col"><kbd>-</kbd><small class="d-block text-muted">Disminuir línea activa</small></div>
                         </div>
                     </div>
                 </section>
@@ -199,7 +199,7 @@
                         </thead>
                         <tbody>
                             {% for item in sale.items.all %}
-                            <tr>
+                            <tr tabindex="0" data-cart-row aria-label="{{ item.product.name }}">
                                 <td>
                                     <strong class="d-block">{{ item.product.name }}</strong>
                                     <small class="text-muted font-monospace">{{ item.unit_price }} Bs c/u</small>
@@ -208,11 +208,11 @@
                                 <td class="text-center">
                                     <form method="post" action="{% url 'sales:update-item' item.pk %}" class="d-inline-flex align-items-center gap-1">
                                         {% csrf_token %}
-                                        <button class="btn btn-outline-secondary btn-sm" name="quantity" value="{{ item.quantity|add:'-1' }}" title="Disminuir cantidad">
+                                        <button class="btn btn-outline-secondary btn-sm" name="quantity" value="{{ item.quantity|add:'-1' }}" data-cart-decrease title="Disminuir cantidad">
                                             <i class="bi bi-dash-lg"></i>
                                         </button>
                                         <span class="border rounded px-2 py-1 font-monospace">{{ item.quantity|floatformat:0 }}</span>
-                                        <button class="btn btn-outline-secondary btn-sm" name="quantity" value="{{ item.quantity|add:'1' }}" title="Aumentar cantidad">
+                                        <button class="btn btn-outline-secondary btn-sm" name="quantity" value="{{ item.quantity|add:'1' }}" data-cart-increase title="Aumentar cantidad">
                                             <i class="bi bi-plus-lg"></i>
                                         </button>
                                     </form>
@@ -272,7 +272,7 @@
                             <label class="form-label fw-semibold small">Método de pago</label>
                             <div class="row row-cols-2 row-cols-md-5 g-2" id="payment-method-buttons">
                                 {% for payment_method in payment_methods %}
-                                <div class="col"><button type="button" class="btn btn-outline-{{ payment_method.style }} btn-sm w-100 payment-method-button" data-method="{{ payment_method.code }}" {% if not payment_method.enabled %}disabled aria-disabled="true"{% endif %}><i class="bi bi-{{ payment_method.icon }} me-1"></i>{{ payment_method.label }}</button></div>
+                                <div class="col"><button type="button" class="btn btn-outline-{{ payment_method.style }} btn-sm w-100 payment-method-button" data-method="{{ payment_method.code }}" data-icon="{{ payment_method.icon }}" data-style="{{ payment_method.style }}" {% if not payment_method.enabled %}disabled aria-disabled="true"{% endif %}><i class="bi bi-{{ payment_method.icon }} me-1"></i>{{ payment_method.label }}</button></div>
                                 {% endfor %}
                             </div>
                             {% if not has_enabled_payment_methods %}<div class="text-danger small mt-2">No hay métodos de pago habilitados.</div>{% endif %}
@@ -303,14 +303,49 @@
                         <div class="row g-2">
                             <div class="col-7">
                                 <div class="d-grid">
-                                    <button id="checkout-button" class="btn btn-success py-2" {% if not sale.items.exists or not has_enabled_payment_methods %}disabled{% endif %}>
+                                    <button id="checkout-button" type="button" class="btn btn-success py-2" {% if not sale.items.exists or not has_enabled_payment_methods %}disabled{% endif %}>
                                         <i class="bi bi-cart-check me-2"></i>Cobrar <span class="small">(F8)</span>
                                     </button>
                                 </div>
                             </div>
                             <div class="col-5">
                                 <div class="d-grid">
-                                    <a href="{% url 'sales:pos' %}" class="btn btn-outline-danger py-2">Cancelar <span class="small">(ESC)</span></a>
+                                    <a id="pos-cancel" href="{% url 'sales:pos' %}" class="btn btn-outline-danger py-2">Cancelar <span class="small">(ESC)</span></a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal fade" id="checkout-confirmation-modal" tabindex="-1" aria-labelledby="checkout-confirmation-title" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title fw-semibold" id="checkout-confirmation-title">Confirmar cobro</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <dl class="row mb-0">
+                                            <dt class="col-5">Cliente</dt>
+                                            <dd class="col-7" id="confirmation-customer">Sin cliente</dd>
+                                            <dt class="col-5">Método de pago</dt>
+                                            <dd class="col-7" id="confirmation-payment-method"></dd>
+                                            <dt class="col-5">Subtotal</dt>
+                                            <dd class="col-7 font-monospace text-muted" id="confirmation-subtotal"></dd>
+                                            <dt class="col-5">Descuento</dt>
+                                            <dd class="col-7 font-monospace text-success" id="confirmation-discount"></dd>
+                                            <dt class="col-5 fw-semibold">Total a cobrar</dt>
+                                            <dd class="col-7 fw-bold fs-4 font-monospace text-primary" id="confirmation-total"></dd>
+                                            <div id="confirmation-cash-details" class="row g-0">
+                                                <dt class="col-5">Monto recibido</dt>
+                                                <dd class="col-7 fw-semibold fs-5 font-monospace" id="confirmation-received"></dd>
+                                                <dt class="col-5">Cambio</dt>
+                                                <dd class="col-7 fw-bold fs-4 text-success font-monospace" id="confirmation-change"></dd>
+                                            </div>
+                                        </dl>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Volver a corregir</button>
+                                        <button type="submit" id="confirm-checkout-button" class="btn btn-success">Confirmar cobro</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -325,14 +360,84 @@
 {% block extra_js %}
 <script>
 (() => {
-    const paymentSelect = document.getElementById("{{ checkout_form.payment_method.id_for_label }}");
+    const productSearch = document.getElementById("product-search");
     const customerSelect = document.getElementById("{{ checkout_form.customer.id_for_label }}");
+    const checkoutButton = document.getElementById("checkout-button");
+    const checkoutForm = checkoutButton?.form;
+    const confirmationModalElement = document.getElementById("checkout-confirmation-modal");
+    const confirmCheckoutButton = document.getElementById("confirm-checkout-button");
+    const cancelLink = document.getElementById("pos-cancel");
+    const cartRows = document.querySelectorAll("[data-cart-row]");
+    let activeCartRow = null;
+
+    const selectCartRow = (row) => {
+        cartRows.forEach((cartRow) => cartRow.classList.toggle("table-active", cartRow === row));
+        activeCartRow = row;
+    };
+
+    cartRows.forEach((row) => {
+        row.addEventListener("click", () => selectCartRow(row));
+        row.addEventListener("focusin", () => selectCartRow(row));
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.altKey || event.ctrlKey || event.metaKey) return;
+
+        if (event.key === "F2") {
+            event.preventDefault();
+            productSearch?.focus();
+            productSearch?.select();
+            return;
+        }
+        if (event.key === "F4") {
+            event.preventDefault();
+            customerSelect?.focus();
+            return;
+        }
+        if (event.key === "F8") {
+            event.preventDefault();
+            if (!confirmationModalElement?.classList.contains("show") && checkoutButton && !checkoutButton.disabled) {
+                checkoutButton.click();
+            }
+            return;
+        }
+        if (event.key === "Escape") {
+            if (confirmationModalElement?.classList.contains("show")) return;
+            if (cancelLink) {
+                event.preventDefault();
+                cancelLink.click();
+            }
+            return;
+        }
+
+        const target = event.target;
+        const isTextEntry = target instanceof HTMLElement && (
+            target.isContentEditable || target.closest("input, textarea, select")
+        );
+        if (isTextEntry || !activeCartRow) return;
+
+        const buttonSelector = event.key === "+" || event.code === "NumpadAdd"
+            ? "[data-cart-increase]"
+            : event.key === "-" || event.code === "NumpadSubtract"
+                ? "[data-cart-decrease]"
+                : null;
+        if (!buttonSelector) return;
+
+        const quantityButton = activeCartRow.querySelector(buttonSelector);
+        if (quantityButton) {
+            event.preventDefault();
+            quantityButton.click();
+        }
+    }, true);
+
+    const paymentSelect = document.getElementById("{{ checkout_form.payment_method.id_for_label }}");
     const cashReceived = document.getElementById("{{ checkout_form.cash_received.id_for_label }}");
     const discountInput = document.getElementById("{{ checkout_form.discount_amount.id_for_label }}");
     const saleSubtotal = document.getElementById("sale-subtotal");
     const saleTotal = document.getElementById("sale-total");
     const changeAmount = document.getElementById("change-amount");
     const paymentButtons = document.querySelectorAll(".payment-method-button");
+    const confirmationCashDetails = document.getElementById("confirmation-cash-details");
     const updateDiscountUrl = "{% url 'sales:update-discount' %}";
     const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
 
@@ -403,12 +508,63 @@
         updateChange();
     };
 
+    const updateConfirmationSummary = () => {
+        const selectedCustomer = customerSelect.selectedOptions[0];
+        const selectedPaymentButton = document.querySelector(`.payment-method-button[data-method="${paymentSelect.value}"]`);
+        const paymentMethodSummary = document.getElementById("confirmation-payment-method");
+        document.getElementById("confirmation-customer").textContent = customerSelect.value
+            ? selectedCustomer.textContent.trim()
+            : "Sin cliente";
+        if (selectedPaymentButton) {
+            const badge = document.createElement("span");
+            const style = selectedPaymentButton.dataset.style;
+            badge.className = `badge bg-${style}${style === "warning" ? " text-dark" : ""}`;
+            const icon = document.createElement("i");
+            icon.className = `bi bi-${selectedPaymentButton.dataset.icon} me-1`;
+            const label = document.createTextNode(paymentSelect.selectedOptions[0]?.textContent.trim() || "-");
+            badge.append(icon, label);
+            paymentMethodSummary.replaceChildren(badge);
+        } else {
+            paymentMethodSummary.textContent = "-";
+        }
+        document.getElementById("confirmation-subtotal").textContent = `${Number(saleSubtotal.dataset.subtotal || 0).toFixed(2)} Bs`;
+        document.getElementById("confirmation-discount").textContent = `${(Number(discountInput.value) || 0).toFixed(2)} Bs`;
+        document.getElementById("confirmation-total").textContent = `${(Number(saleTotal.dataset.total) || 0).toFixed(2)} Bs`;
+        document.getElementById("confirmation-received").textContent = `${(Number(cashReceived.value) || 0).toFixed(2)} Bs`;
+        document.getElementById("confirmation-change").textContent = changeAmount.textContent;
+        confirmationCashDetails.classList.toggle("d-none", paymentSelect.value !== "CASH");
+    };
+
+    checkoutButton.addEventListener("click", () => {
+        cashReceived.setCustomValidity("");
+        if (!checkoutForm.reportValidity()) return;
+
+        const total = Number(saleTotal.dataset.total) || 0;
+        const received = Number(cashReceived.value) || 0;
+        if (paymentSelect.value === "CASH" && received < total) {
+            cashReceived.setCustomValidity("El monto recibido debe ser igual o mayor al total a cobrar.");
+            cashReceived.reportValidity();
+            return;
+        }
+
+        updateConfirmationSummary();
+        bootstrap.Modal.getOrCreateInstance(confirmationModalElement).show();
+    });
+
+    checkoutForm.addEventListener("submit", () => {
+        confirmCheckoutButton.disabled = true;
+        confirmCheckoutButton.textContent = "Procesando…";
+    });
+
     paymentButtons.forEach((button) => button.addEventListener("click", () => {
         paymentSelect.value = button.dataset.method;
         updatePaymentMethod();
     }));
     paymentSelect.addEventListener("change", updatePaymentMethod);
-    cashReceived.addEventListener("input", updateChange);
+    cashReceived.addEventListener("input", () => {
+        cashReceived.setCustomValidity("");
+        updateChange();
+    });
     updatePaymentMethod();
 })();
 </script>

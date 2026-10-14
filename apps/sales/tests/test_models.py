@@ -84,6 +84,45 @@ class SaleServiceTests(TestCase):
 
 		self.assertContains(response, "Disponible: 10")
 
+	def test_pos_renders_keyboard_shortcuts_for_cart_controls(self):
+		sale = create_sale(user=self.user)
+		add_sale_item(sale=sale, product=self.product, quantity=1, user=self.user)
+		self.client.force_login(self.user)
+
+		response = self.client.get(reverse("sales:pos"))
+
+		self.assertContains(response, 'data-cart-row')
+		self.assertContains(response, 'data-cart-increase')
+		self.assertContains(response, 'data-cart-decrease')
+		self.assertContains(response, 'id="pos-cancel"')
+		self.assertContains(response, 'event.key === "F2"')
+		self.assertContains(response, 'event.key === "F4"')
+		self.assertContains(response, 'event.key === "F8"')
+		self.assertEqual(response.content.decode().count("const customerSelect ="), 1)
+		self.assertContains(response, 'id="checkout-confirmation-modal"')
+		self.assertContains(response, 'id="confirm-checkout-button"')
+		self.assertContains(response, "confirmation-total")
+		self.assertContains(response, "confirmation-change")
+		self.assertContains(response, "El monto recibido debe ser igual o mayor al total a cobrar.")
+		self.assertContains(response, 'data-icon="cash"')
+		self.assertContains(response, 'data-style="success"')
+		self.assertContains(response, 'id="confirmation-total"')
+		self.assertContains(response, 'id="confirmation-change"')
+		self.assertContains(response, 'badge bg-${style}')
+
+	def test_sale_detail_has_shortcuts_to_sales_list_and_pos(self):
+		sale = create_sale(user=self.user)
+		add_sale_item(sale=sale, product=self.product, quantity=1, user=self.user)
+		self.client.force_login(self.user)
+
+		response = self.client.get(reverse("sales:detail", args=[sale.pk]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, reverse("sales:list"))
+		self.assertContains(response, reverse("sales:pos"))
+		self.assertContains(response, "Lista de ventas")
+		self.assertContains(response, "Punto de venta")
+
 	def test_pos_disables_payment_method_configured_as_unavailable(self):
 		settings = CompanySettings.load()
 		settings.enable_qr_payment = False
@@ -92,7 +131,7 @@ class SaleServiceTests(TestCase):
 
 		response = self.client.get(reverse("sales:pos"))
 
-		self.assertContains(response, 'data-method="QR" disabled aria-disabled="true"')
+		self.assertContains(response, 'data-method="QR" data-icon="qr-code" data-style="primary" disabled aria-disabled="true"')
 
 	def test_sale_list_filters_by_date_and_defaults_to_today(self):
 		sale = create_sale(user=self.user)
