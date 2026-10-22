@@ -10,7 +10,7 @@ from apps.branches.models import Branch
 from apps.inventory.models import InventoryMovement, InventoryMovementLine, Stock
 from apps.inventory.forms import InventoryMovementFilterForm, StockInitialForm
 from apps.inventory.services import post_inventory_movement
-from apps.products.models import Product
+from apps.products.models import Category, Product
 from apps.users.models import User
 
 
@@ -169,6 +169,50 @@ class StockModelTests(TestCase):
 		response = self.client.get(reverse("inventory:list"), {"with_stock": "on"})
 
 		self.assertEqual(list(response.context["stocks"]), [in_stock])
+
+	def test_stock_list_searches_by_product_sku_or_name(self):
+		matching_sku = Stock.objects.create(product=self.product, branch=self.central, quantity=10)
+		name_product = Product.objects.create(name="Agua mineral", sku="AGUA-1")
+		matching_name = Stock.objects.create(product=name_product, branch=self.central, quantity=8)
+		Product.objects.create(name="Leche", sku="LECHE-1")
+		admin = User.objects.create_user(
+			username="admin-product-search",
+			password="test-password",
+			branch=self.central,
+			role=User.ROLE_ADMIN,
+		)
+		self.client.force_login(admin)
+
+		for query, expected in [("COCA-6", matching_sku), ("mineral", matching_name)]:
+			with self.subTest(query=query):
+				response = self.client.get(reverse("inventory:list"), {"q": query})
+				self.assertEqual(list(response.context["stocks"]), [expected])
+
+	def test_stock_list_filters_by_category_and_combines_with_product_search(self):
+		beverages = Category.objects.create(name="Bebidas", code="BEBIDAS")
+		cleaning = Category.objects.create(name="Limpieza", code="LIMPIEZA")
+		self.product.category = beverages
+		self.product.save()
+		matching_stock = Stock.objects.create(product=self.product, branch=self.central, quantity=10)
+		other_product = Product.objects.create(
+			name="Coca Cola botella grande", sku="COCA-2", category=cleaning
+		)
+		Stock.objects.create(product=other_product, branch=self.central, quantity=7)
+		admin = User.objects.create_user(
+			username="admin-category-filter",
+			password="test-password",
+			branch=self.central,
+			role=User.ROLE_ADMIN,
+		)
+		self.client.force_login(admin)
+
+		response = self.client.get(
+			reverse("inventory:list"),
+			{"category": beverages.pk, "q": "COCA"},
+		)
+
+		self.assertEqual(list(response.context["stocks"]), [matching_stock])
+		self.assertContains(response, "Bebidas")
 
 	def test_cashier_sees_only_own_branch_inventory_even_if_other_branch_is_requested(self):
 		own_stock = Stock.objects.create(product=self.product, branch=self.central, quantity=10)

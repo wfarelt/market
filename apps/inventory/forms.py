@@ -3,6 +3,7 @@ from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.utils import timezone
 
 from apps.branches.models import Branch
+from apps.products.models import Category
 
 from .models import InventoryMovement, InventoryMovementLine, Stock
 
@@ -36,6 +37,13 @@ class InventoryMovementFilterForm(forms.Form):
 
 
 class StockFilterForm(forms.Form):
+	q = forms.CharField(required=False, label="Buscar producto")
+	category = forms.ModelChoiceField(
+		queryset=Category.objects.all(),
+		required=False,
+		label="Categoría",
+		empty_label="Todas las categorías",
+	)
 	branch = forms.ModelChoiceField(
 		queryset=Branch.objects.filter(is_active=True),
 		required=False,
@@ -46,6 +54,10 @@ class StockFilterForm(forms.Form):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
+		self.fields["q"].widget.attrs.update(
+			{"class": "form-control", "placeholder": "SKU o nombre del producto"}
+		)
+		self.fields["category"].widget.attrs["class"] = "form-select"
 		self.fields["branch"].widget.attrs["class"] = "form-select"
 		self.fields["with_stock"].widget.attrs.update(
 			{"class": "form-check-input", "role": "switch"}

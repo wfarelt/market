@@ -29,7 +29,9 @@ class StockListView(StockAccessMixin, ListView):
 	template_name = "inventory/list.html"
 	context_object_name = "stocks"
 	paginate_by = 20
-	queryset = Stock.objects.select_related("product", "branch", "product__unit_measure")
+	queryset = Stock.objects.select_related(
+		"product", "branch", "product__unit_measure", "product__category"
+	)
 
 	def get_queryset(self):
 		queryset = super().get_queryset()
@@ -46,6 +48,13 @@ class StockListView(StockAccessMixin, ListView):
 		if not self.filter_form.is_valid():
 			return queryset.none()
 		filters = self.filter_form.cleaned_data
+		if filters["q"]:
+			query = filters["q"]
+			queryset = queryset.filter(
+				Q(product__sku__icontains=query) | Q(product__name__icontains=query)
+			)
+		if filters["category"]:
+			queryset = queryset.filter(product__category=filters["category"])
 		if branch := filters["branch"]:
 			queryset = queryset.filter(branch=branch)
 		if filters["with_stock"]:
