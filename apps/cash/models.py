@@ -91,6 +91,21 @@ class CashMovement(TimeStampedModel):
 		verbose_name_plural = "movimientos de caja"
 
 
+class CashClosureCorrection(TimeStampedModel):
+	cash_register = models.ForeignKey(CashRegister, on_delete=models.PROTECT, related_name="corrections")
+	previous_closing_amount = models.DecimalField(max_digits=12, decimal_places=2)
+	corrected_closing_amount = models.DecimalField(max_digits=12, decimal_places=2)
+	reason = models.TextField()
+
+	class Meta:
+		ordering = ["-created_at"]
+		verbose_name = "rectificación de cierre de caja"
+		verbose_name_plural = "rectificaciones de cierre de caja"
+
+	def __str__(self):
+		return f"Rectificación de caja #{self.cash_register_id}: {self.previous_closing_amount} → {self.corrected_closing_amount}"
+
+
 class ExpenseCategory(TimeStampedModel):
 	name = models.CharField(max_length=100, unique=True)
 	is_active = models.BooleanField(default=True)

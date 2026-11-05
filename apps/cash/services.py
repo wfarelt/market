@@ -2,7 +2,9 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from .models import CashMovement, CashRegister, PettyCashExpense
+from apps.users.models import User
+
+from .models import CashClosureCorrection, CashMovement, CashRegister, PettyCashExpense
 
 
 @transaction.atomic
@@ -37,6 +39,34 @@ def close_cash_register(*, cash_register, user, closing_amount):
 	cash_register.difference = closing_amount - expected_amount
 	cash_register.save(update_fields=["status", "closed_at", "closing_amount", "expected_amount", "difference", "updated_at"])
 	CashMovement.objects.create(cash_register=cash_register, movement_type=CashMovement.TYPE_CLOSING, amount=closing_amount, description="Conteo de cierre", created_by=user)
+	return cash_register
+
+
+@transaction.atomic
+def correct_cash_closing(*, cash_register, user, closing_amount, reason):
+	cash_register = CashRegister.objects.select_for_update().get(pk=cash_register.pk)
+	if cash_register.status != CashRegister.STATUS_CLOSED:
+		raise ValidationError("Solo se puede rectificar una caja cerrada.")
+	if user.role not in {User.ROLE_ADMIN, User.ROLE_SUPERADMIN}:
+		raise ValidationError("Solo un administrador puede rectificar un cierre.")
+	if user.role == User.ROLE_ADMIN and cash_register.branch_id != user.branch_id:
+		raise ValidationError("Solo puedes rectificar cierres de tu sucursal.")
+	if closing_amount == cash_register.closing_amount:
+		raise ValidationError("El monto corregido debe ser distinto al monto vigente.")
+	reason = reason.strip()
+	if not reason:
+		raise ValidationError("Debes indicar el motivo de la rectificación.")
+
+	CashClosureCorrection.objects.create(
+		cash_register=cash_register,
+		previous_closing_amount=cash_register.closing_amount,
+		corrected_closing_amount=closing_amount,
+		reason=reason,
+		created_by=user,
+	)
+	cash_register.closing_amount = closing_amount
+	cash_register.difference = closing_amount - cash_register.expected_amount
+	cash_register.save(update_fields=["closing_amount", "difference", "updated_at"])
 	return cash_register
 
 

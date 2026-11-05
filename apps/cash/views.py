@@ -8,14 +8,14 @@ from django.views.generic import CreateView, DetailView, FormView, ListView, Upd
 
 from apps.users.models import User
 
-from .forms import CashRegisterCloseForm, CashRegisterOpenForm, ExpenseCategoryForm, PettyCashExpenseForm
+from .forms import CashClosureCorrectionForm, CashRegisterCloseForm, CashRegisterOpenForm, ExpenseCategoryForm, PettyCashExpenseForm
 from .models import CashRegister, ExpenseCategory
-from .services import close_cash_register, open_cash_register, register_petty_cash_expense
+from .services import close_cash_register, correct_cash_closing, open_cash_register, register_petty_cash_expense
 
 
 class CashAccessMixin(LoginRequiredMixin):
 	def dispatch(self, request, *args, **kwargs):
-		if request.user.role not in {User.ROLE_ADMIN, User.ROLE_CAJERO, User.ROLE_ALMACENERO}:
+		if request.user.role not in {User.ROLE_SUPERADMIN, User.ROLE_ADMIN, User.ROLE_CAJERO, User.ROLE_ALMACENERO}:
 			raise Http404
 		return super().dispatch(request, *args, **kwargs)
 
@@ -37,6 +37,8 @@ class CashRegisterListView(CashAccessMixin, ListView):
 		queryset = CashRegister.objects.select_related("user", "branch")
 		if self.request.user.role == User.ROLE_ADMIN:
 			return queryset.filter(branch=self.request.user.branch)
+		if self.request.user.role == User.ROLE_SUPERADMIN:
+			return queryset
 		return queryset.filter(user=self.request.user)
 
 	def get_context_data(self, **kwargs):
@@ -144,6 +146,46 @@ class CashRegisterCloseView(CashAccessMixin, FormView):
 		return context
 
 
+class CashClosureCorrectionView(LoginRequiredMixin, FormView):
+	form_class = CashClosureCorrectionForm
+	template_name = "cash/correction_form.html"
+
+	def dispatch(self, request, *args, **kwargs):
+		if request.user.role not in {User.ROLE_ADMIN, User.ROLE_SUPERADMIN}:
+			raise Http404
+		queryset = CashRegister.objects.select_related("user", "branch").filter(status=CashRegister.STATUS_CLOSED)
+		if request.user.role == User.ROLE_ADMIN:
+			queryset = queryset.filter(branch=request.user.branch)
+		self.cash_register = get_object_or_404(queryset, pk=kwargs["pk"])
+		return super().dispatch(request, *args, **kwargs)
+
+	def get_initial(self):
+		initial = super().get_initial()
+		initial["closing_amount"] = self.cash_register.closing_amount
+		return initial
+
+	def get_success_url(self):
+		return reverse_lazy("cash:detail", kwargs={"pk": self.cash_register.pk})
+
+	def form_valid(self, form):
+		try:
+			correct_cash_closing(
+				cash_register=self.cash_register,
+				user=self.request.user,
+				**form.cleaned_data,
+			)
+		except ValidationError as error:
+			form.add_error(None, error)
+			return self.form_invalid(form)
+		messages.success(self.request, "Monto contado rectificado. El cierre original y su historial se conservaron.")
+		return super().form_valid(form)
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context["cash_register"] = self.cash_register
+		return context
+
+
 class PettyCashExpenseCreateView(CashAccessMixin, FormView):
 	form_class = PettyCashExpenseForm
 	template_name = "cash/form.html"
@@ -175,7 +217,7 @@ class CashRegisterDetailView(CashAccessMixin, DetailView):
 	context_object_name = "cash_register"
 
 	def get_queryset(self):
-		queryset = CashRegister.objects.select_related("user", "branch").prefetch_related("movements")
+		queryset = CashRegister.objects.select_related("user", "branch").prefetch_related("movements", "corrections__created_by")
 		if self.request.user.role == User.ROLE_ADMIN:
 			return queryset.filter(branch=self.request.user.branch)
 		elif self.request.user.role == User.ROLE_SUPERADMIN:
@@ -185,5 +227,11 @@ class CashRegisterDetailView(CashAccessMixin, DetailView):
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		context["movements"] = self.object.movements.all()
+		context["corrections"] = self.object.corrections.all()
+		context["can_correct_closing"] = (
+			self.object.status == CashRegister.STATUS_CLOSED
+			and self.request.user.role in {User.ROLE_ADMIN, User.ROLE_SUPERADMIN}
+			and (self.request.user.role == User.ROLE_SUPERADMIN or self.object.branch_id == self.request.user.branch_id)
+		)
 		return context
 

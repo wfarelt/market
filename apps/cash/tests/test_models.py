@@ -5,8 +5,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.branches.models import Branch
-from apps.cash.models import CashMovement, CashRegister, ExpenseCategory
-from apps.cash.services import close_cash_register, open_cash_register, register_petty_cash_expense
+from apps.cash.models import CashClosureCorrection, CashMovement, CashRegister, ExpenseCategory
+from apps.cash.services import close_cash_register, correct_cash_closing, open_cash_register, register_petty_cash_expense
 from apps.users.models import User
 
 
@@ -35,6 +35,56 @@ class CashRegisterServiceTests(TestCase):
 			list(cash_register.movements.values_list("movement_type", flat=True)),
 			[CashMovement.TYPE_CLOSING, CashMovement.TYPE_PETTY_CASH_EXPENSE, CashMovement.TYPE_OPENING],
 		)
+
+	def test_admin_can_correct_counted_amount_without_changing_original_closing_movement(self):
+		admin = User.objects.create_user(username="admin", password="test-password", branch=self.branch, role=User.ROLE_ADMIN)
+		cash_register = open_cash_register(user=self.user, opening_amount=Decimal("100.00"))
+		close_cash_register(cash_register=cash_register, user=self.user, closing_amount=Decimal("150.00"))
+		original_closing_movement = cash_register.movements.get(movement_type=CashMovement.TYPE_CLOSING)
+
+		correct_cash_closing(
+			cash_register=cash_register,
+			user=admin,
+			closing_amount=Decimal("130.00"),
+			reason="Se digitó mal el conteo.",
+		)
+
+		cash_register.refresh_from_db()
+		original_closing_movement.refresh_from_db()
+		correction = CashClosureCorrection.objects.get(cash_register=cash_register)
+		self.assertEqual(cash_register.closing_amount, Decimal("130.00"))
+		self.assertEqual(cash_register.expected_amount, Decimal("100.00"))
+		self.assertEqual(cash_register.difference, Decimal("30.00"))
+		self.assertEqual(original_closing_movement.amount, Decimal("150.00"))
+		self.assertEqual(correction.previous_closing_amount, Decimal("150.00"))
+		self.assertEqual(correction.corrected_closing_amount, Decimal("130.00"))
+		self.assertEqual(correction.created_by, admin)
+
+	def test_cashier_cannot_correct_closed_register(self):
+		cash_register = open_cash_register(user=self.user, opening_amount=Decimal("100.00"))
+		close_cash_register(cash_register=cash_register, user=self.user, closing_amount=Decimal("150.00"))
+
+		with self.assertRaises(ValidationError):
+			correct_cash_closing(
+				cash_register=cash_register,
+				user=self.user,
+				closing_amount=Decimal("130.00"),
+				reason="No autorizado.",
+			)
+
+	def test_admin_cannot_correct_register_from_another_branch(self):
+		other_branch = Branch.objects.create(name="Norte", code="NORTE")
+		admin = User.objects.create_user(username="admin", password="test-password", branch=other_branch, role=User.ROLE_ADMIN)
+		cash_register = open_cash_register(user=self.user, opening_amount=Decimal("100.00"))
+		close_cash_register(cash_register=cash_register, user=self.user, closing_amount=Decimal("150.00"))
+
+		with self.assertRaises(ValidationError):
+			correct_cash_closing(
+				cash_register=cash_register,
+				user=admin,
+				closing_amount=Decimal("130.00"),
+				reason="Fuera de sucursal.",
+			)
 
 	def test_petty_cash_expenses_cannot_exceed_opening_amount(self):
 		cash_register = open_cash_register(user=self.user, opening_amount=Decimal("100.00"))

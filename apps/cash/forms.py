@@ -32,6 +32,22 @@ class CashRegisterCloseForm(forms.Form):
 		self.fields["closing_amount"].widget.attrs.update({"class": "form-control", "step": "0.01"})
 
 
+class CashClosureCorrectionForm(forms.Form):
+	closing_amount = forms.DecimalField(max_digits=12, decimal_places=2, min_value=0, label="Monto contado corregido")
+	reason = forms.CharField(label="Motivo de la rectificación", widget=forms.Textarea(attrs={"rows": 3}))
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.fields["closing_amount"].widget.attrs.update({"class": "form-control", "step": "0.01"})
+		self.fields["reason"].widget.attrs.update({"class": "form-control", "maxlength": 2000})
+
+	def clean_reason(self):
+		reason = self.cleaned_data["reason"].strip()
+		if not reason:
+			raise forms.ValidationError("Indica el motivo de la rectificación.")
+		return reason
+
+
 class PettyCashExpenseForm(forms.Form):
 	category = forms.ModelChoiceField(queryset=ExpenseCategory.objects.none(), label="Categoría")
 	concept = forms.CharField(max_length=255, label="Concepto")

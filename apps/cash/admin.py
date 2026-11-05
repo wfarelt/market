@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CashMovement, CashRegister, ExpenseCategory, PettyCashExpense
+from .models import CashClosureCorrection, CashMovement, CashRegister, ExpenseCategory, PettyCashExpense
 
 
 class CashMovementInline(admin.TabularInline):
@@ -16,6 +16,25 @@ class CashRegisterAdmin(admin.ModelAdmin):
 	list_filter = ["status", "branch"]
 	readonly_fields = ["opened_at", "closed_at", "created_at", "updated_at", "created_by"]
 	inlines = [CashMovementInline]
+
+
+@admin.register(CashClosureCorrection)
+class CashClosureCorrectionAdmin(admin.ModelAdmin):
+	list_display = ["cash_register", "previous_closing_amount", "corrected_closing_amount", "created_by", "created_at"]
+	list_filter = ["cash_register__branch", "created_at"]
+	readonly_fields = [
+		"cash_register",
+		"previous_closing_amount",
+		"corrected_closing_amount",
+		"reason",
+		"created_by",
+		"created_at",
+		"updated_at",
+	]
+	can_delete = False
+
+	def has_add_permission(self, request):
+		return False
 
 
 @admin.register(ExpenseCategory)

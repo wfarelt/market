@@ -12,6 +12,7 @@ urlpatterns = [
 	path("open/", views.CashRegisterOpenView.as_view(), name="open"),
 	path("<int:pk>/", views.CashRegisterDetailView.as_view(), name="detail"),
 	path("<int:pk>/close/", views.CashRegisterCloseView.as_view(), name="close"),
+	path("<int:pk>/correct-closing/", views.CashClosureCorrectionView.as_view(), name="correct-closing"),
 	path("<int:pk>/expenses/create/", views.PettyCashExpenseCreateView.as_view(), name="expense-create"),
 ]
 
