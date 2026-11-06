@@ -74,7 +74,7 @@
             <div class="p-2 border rounded bg-light">
               <span class="text-muted small d-block">Ingresos Efectivo</span>
               <strong class="font-monospace text-success">+{{ cash_register.total_cash_income }}</strong>
-              <small class="d-block text-muted" style="font-size:0.75rem;">(Vtas: {{ cash_register.total_sales }} · Cobros: {{ cash_register.total_credit_collections }})</small>
+              <small class="d-block text-muted small">(Vtas: {{ cash_register.total_sales }} · Cobros: {{ cash_register.total_credit_collections }})</small>
             </div>
           </div>
           <div class="col-6 col-sm-4">
@@ -93,7 +93,7 @@
               <strong class="font-monospace">
                 {% if cash_register.status == 'CLOSED' %}
                   {{ cash_register.closing_amount }}
-                  <small class="d-block text-warning" style="font-size:0.75rem;">Dif: {{ cash_register.difference }}</small>
+                  <small class="d-block text-warning small">Dif: {{ cash_register.difference }}</small>
                 {% else %}
                   -
                 {% endif %}
