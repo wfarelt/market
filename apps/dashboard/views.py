@@ -26,7 +26,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             stocks = stocks.filter(branch=user.branch)
             transfers = transfers.filter(origin_branch=user.branch) | transfers.filter(destination_branch=user.branch)
 
-        today_sales = sales.filter(completed_at__date=today)
+        today_sales = sales.filter(user=user, completed_at__date=today)
         context.update(
             today_sales_total=today_sales.aggregate(total=Sum("total"))["total"] or 0,
             today_sales_count=today_sales.count(),
@@ -34,7 +34,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             out_of_stock=stocks.filter(quantity__lte=0).count(),
             pending_transfers=transfers.filter(status__in=[Transfer.STATUS_DRAFT, Transfer.STATUS_SENT]).count(),
             open_cash_register=CashRegister.objects.filter(user=user, status=CashRegister.STATUS_OPEN).first(),
-            recent_sales=sales.select_related("user", "branch").order_by("-completed_at")[:5],
+            recent_sales=sales.filter(user=user).select_related("user", "branch").order_by("-completed_at")[:5],
             recent_transfers=transfers.select_related("origin_branch", "destination_branch").order_by("-created_at")[:5],
         )
         return context

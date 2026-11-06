@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
+from apps.branches.models import Branch
 from apps.users.models import User
 
 from .forms import CashClosureCorrectionForm, CashRegisterCloseForm, CashRegisterOpenForm, ExpenseCategoryForm, PettyCashExpenseForm
@@ -36,7 +37,21 @@ class CashRegisterListView(CashAccessMixin, ListView):
 	def get_queryset(self):
 		queryset = CashRegister.objects.select_related("user", "branch")
 		if self.request.user.role == User.ROLE_ADMIN:
-			return queryset.filter(branch=self.request.user.branch)
+			branch_id = self.request.GET.get("branch", "").strip()
+			user_id = self.request.GET.get("user", "").strip()
+			for value in (branch_id, user_id):
+				if value and (
+					not value.isascii()
+					or not value.isdecimal()
+					or len(value) > 19
+					or int(value) > 9223372036854775807
+				):
+					return queryset.none()
+			if branch_id:
+				queryset = queryset.filter(branch_id=int(branch_id))
+			if user_id:
+				queryset = queryset.filter(user_id=int(user_id))
+			return queryset
 		if self.request.user.role == User.ROLE_SUPERADMIN:
 			return queryset
 		return queryset.filter(user=self.request.user)
@@ -44,6 +59,18 @@ class CashRegisterListView(CashAccessMixin, ListView):
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		context["open_register"] = CashRegister.objects.filter(user=self.request.user, status=CashRegister.STATUS_OPEN).first()
+		context["can_filter_cash_registers"] = self.request.user.role == User.ROLE_ADMIN
+		if context["can_filter_cash_registers"]:
+			context["branches"] = Branch.objects.order_by("name")
+			context["selected_branch"] = self.request.GET.get("branch", "").strip()
+			context["selected_user"] = self.request.GET.get("user", "").strip()
+			users = User.objects.filter(cash_registers__isnull=False).distinct().order_by("username")
+			selected_branch = context["selected_branch"]
+			if selected_branch.isascii() and selected_branch.isdecimal() and len(selected_branch) <= 19:
+				branch_id = int(selected_branch)
+				if branch_id <= 9223372036854775807:
+					users = users.filter(branch_id=branch_id)
+			context["cash_register_users"] = users
 		return context
 
 

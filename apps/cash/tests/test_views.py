@@ -19,6 +19,60 @@ class CashViewTests(TestCase):
 		)
 		self.client.force_login(self.cajero)
 
+	def test_admin_can_filter_registers_by_any_branch_and_user(self):
+		other_branch = Branch.objects.create(name="Norte", code="NORTE")
+		other_cashier = User.objects.create_user(
+			username="cajero-norte",
+			password="test-password",
+			branch=other_branch,
+			role=User.ROLE_CAJERO,
+		)
+		own_register = CashRegister.objects.create(user=self.cajero, branch=self.branch, opening_amount=Decimal("100.00"))
+		other_register = CashRegister.objects.create(user=other_cashier, branch=other_branch, opening_amount=Decimal("150.00"))
+		admin = User.objects.create_user(
+			username="admin",
+			password="test-password",
+			branch=self.branch,
+			role=User.ROLE_ADMIN,
+		)
+		self.client.force_login(admin)
+
+		response = self.client.get(reverse("cash:list"))
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(set(response.context["cash_registers"].values_list("pk", flat=True)), {own_register.pk, other_register.pk})
+		self.assertContains(response, 'name="branch"')
+		self.assertContains(response, 'name="user"')
+
+		response = self.client.get(reverse("cash:list"), {"branch": other_branch.pk})
+		self.assertEqual(list(response.context["cash_registers"].values_list("pk", flat=True)), [other_register.pk])
+		self.assertContains(response, f'value="{other_branch.pk}" selected')
+
+		response = self.client.get(reverse("cash:list"), {"user": other_cashier.pk})
+		self.assertEqual(list(response.context["cash_registers"].values_list("pk", flat=True)), [other_register.pk])
+
+		response = self.client.get(reverse("cash:list"), {"branch": self.branch.pk, "user": other_cashier.pk})
+		self.assertEqual(list(response.context["cash_registers"]), [])
+
+		response = self.client.get(reverse("cash:list"), {"branch": "9" * 20})
+		self.assertEqual(list(response.context["cash_registers"]), [])
+
+	def test_non_admin_cannot_expand_register_list_with_filters(self):
+		other_branch = Branch.objects.create(name="Norte", code="NORTE")
+		other_cashier = User.objects.create_user(
+			username="cajero-norte",
+			password="test-password",
+			branch=other_branch,
+			role=User.ROLE_CAJERO,
+		)
+		own_register = CashRegister.objects.create(user=self.cajero, branch=self.branch, opening_amount=Decimal("100.00"))
+		CashRegister.objects.create(user=other_cashier, branch=other_branch, opening_amount=Decimal("150.00"))
+
+		response = self.client.get(reverse("cash:list"), {"branch": other_branch.pk, "user": other_cashier.pk})
+
+		self.assertEqual(list(response.context["cash_registers"].values_list("pk", flat=True)), [own_register.pk])
+		self.assertNotContains(response, 'name="branch"')
+		self.assertNotContains(response, 'name="user"')
+
 	def test_close_cash_register_view_renders_details(self):
 		register = CashRegister.objects.create(
 			user=self.cajero,

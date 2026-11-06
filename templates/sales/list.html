@@ -6,22 +6,34 @@
 <div class="d-flex align-items-center justify-content-between mb-4">
   <div>
     <h5 class="mb-0 fw-semibold">Lista de ventas</h5>
-    <span class="text-muted small">Ventas registradas en {{ request.user.branch }}</span>
+    <span class="text-muted small">{% if request.user.role == 'superadmin' %}Ventas registradas en todas las sucursales{% else %}Ventas registradas en {{ request.user.branch }}{% endif %}</span>
   </div>
+  {% if request.user.branch_id %}
   <a href="{% url 'sales:pos' %}" class="btn btn-primary btn-sm"><i class="bi bi-cart3 me-1"></i>Punto de venta</a>
+  {% endif %}
 </div>
 
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-3">
     <form method="get" class="row g-2">
-      <div class="col-md-5">
-        <input name="q" value="{{ query }}" class="form-control" placeholder="Buscar por número de venta o cliente">
+      <div class="{% if can_filter_users %}col-md-3{% else %}col-md-5{% endif %}">
+        <input name="q" value="{{ query }}" class="form-control" placeholder="Buscar por número de venta o cliente" aria-label="Buscar por número de venta o cliente">
       </div>
+      {% if can_filter_users %}
+      <div class="col-md-2">
+        <select name="user" class="form-select" aria-label="Usuario">
+          <option value="">Todos los usuarios</option>
+          {% for sales_user in sales_users %}
+          <option value="{{ sales_user.pk }}" {% if selected_user == sales_user.pk|stringformat:'s' %}selected{% endif %}>{{ sales_user.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
       <div class="col-md-3">
         <input type="date" name="date" value="{{ selected_date }}" class="form-control" aria-label="Fecha de venta">
       </div>
       <div class="col-md-2">
-        <select name="status" class="form-select">
+        <select name="status" class="form-select" aria-label="Estado de venta">
           <option value="">Todos los estados</option>
           {% for value, label in statuses %}
           <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
@@ -42,6 +54,7 @@
         <tr>
           <th>Número</th>
           <th>Fecha</th>
+          <th>Usuario</th>
           <th>Cliente</th>
           <th>Método</th>
           <th class="text-end">Total</th>
@@ -54,6 +67,7 @@
         <tr>
           <td class="font-monospace fw-semibold">{{ sale.number }}</td>
           <td class="small">{{ sale.completed_at|date:"d/m/Y H:i" }}</td>
+          <td>{{ sale.user.username }}</td>
           <td>{{ sale.customer|default:"Consumidor final" }}</td>
           <td>{{ sale.get_payment_method_display }}</td>
           <td class="text-end font-monospace fw-semibold">{{ sale.total }} Bs</td>
@@ -67,7 +81,7 @@
           <td class="text-end"><a href="{% url 'sales:detail' sale.pk %}" class="btn btn-sm btn-outline-secondary" title="Ver venta"><i class="bi bi-eye"></i></a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="text-center text-muted py-4">No se encontraron ventas.</td></tr>
+        <tr><td colspan="8" class="text-center text-muted py-4">No se encontraron ventas.</td></tr>
         {% endfor %}
       </tbody>
     </table>

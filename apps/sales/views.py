@@ -204,7 +204,18 @@ class PosUpdateDiscountView(PosAccessMixin, TemplateView):
 		return redirect("sales:pos")
 
 
-class SaleListView(SalesAccessMixin, ListView):
+class SaleListAccessMixin(LoginRequiredMixin):
+	def dispatch(self, request, *args, **kwargs):
+		if not request.user.is_authenticated:
+			return self.handle_no_permission()
+		if request.user.role not in {User.ROLE_CAJERO, User.ROLE_ADMIN, User.ROLE_SUPERADMIN}:
+			raise Http404
+		if request.user.role != User.ROLE_SUPERADMIN and not request.user.branch_id:
+			raise Http404
+		return super().dispatch(request, *args, **kwargs)
+
+
+class SaleListView(SaleListAccessMixin, ListView):
 	model = Sale
 	template_name = "sales/list.html"
 	context_object_name = "sales"
@@ -221,9 +232,20 @@ class SaleListView(SalesAccessMixin, ListView):
 		selected_date = self.get_selected_date()
 		day_start = timezone.make_aware(datetime.combine(selected_date, time.min))
 		day_end = day_start + timedelta(days=1)
-		queryset = Sale.objects.select_related("customer", "user", "cash_register").filter(
-			branch=self.request.user.branch,
-		).exclude(status=Sale.STATUS_DRAFT).filter(completed_at__gte=day_start, completed_at__lt=day_end)
+		queryset = Sale.objects.select_related("customer", "user", "cash_register").exclude(
+			status=Sale.STATUS_DRAFT,
+		).filter(completed_at__gte=day_start, completed_at__lt=day_end)
+		user = self.request.user
+		if user.role != User.ROLE_SUPERADMIN:
+			queryset = queryset.filter(branch_id=user.branch_id)
+		if user.role in {User.ROLE_ADMIN, User.ROLE_SUPERADMIN}:
+			selected_user = self.request.GET.get("user", "").strip()
+			if selected_user:
+				if not selected_user.isascii() or not selected_user.isdecimal() or len(selected_user) > 19 or int(selected_user) > 9223372036854775807:
+					return queryset.none()
+				queryset = queryset.filter(user_id=int(selected_user))
+		else:
+			queryset = queryset.filter(user_id=user.pk)
 		if query := self.request.GET.get("q", "").strip():
 			queryset = queryset.filter(
 				Q(number__icontains=query)
@@ -239,6 +261,10 @@ class SaleListView(SalesAccessMixin, ListView):
 		context["query"] = self.request.GET.get("q", "").strip()
 		context["selected_status"] = self.request.GET.get("status", "")
 		context["selected_date"] = self.get_selected_date().isoformat()
+		context["can_filter_users"] = self.request.user.role in {User.ROLE_ADMIN, User.ROLE_SUPERADMIN}
+		if context["can_filter_users"]:
+			context["sales_users"] = User.objects.order_by("username")
+			context["selected_user"] = self.request.GET.get("user", "").strip()
 		context["statuses"] = [
 			(Sale.STATUS_COMPLETED, "Completada"),
 			(Sale.STATUS_CANCELLED, "Anulada"),
