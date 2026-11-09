@@ -34,10 +34,7 @@ class CheckoutForm(forms.Form):
 
 	def __init__(self, *args, user, **kwargs):
 		super().__init__(*args, **kwargs)
-		if user.role != User.ROLE_ADMIN:
-			self.fields.pop("sale_date")
-		else:
-			self.initial.setdefault("sale_date", timezone.localdate())
+		self.initial.setdefault("sale_date", timezone.localdate())
 		self.fields["payment_method"].choices = CompanySettings.load().enabled_payment_choices(Sale.PAYMENT_CHOICES)
 		self.fields["payment_method"].widget.attrs["class"] = "form-select"
 		self.fields["customer"].widget.attrs["class"] = "form-select"

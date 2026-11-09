@@ -11,7 +11,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.users.models import User
 
-from .forms import InventoryMovementFilterForm, InventoryMovementForm, InventoryMovementLineFormSet, StockFilterForm, StockInitialForm, StockLocationForm
+from .forms import InventoryMovementFilterForm, InventoryMovementForm, InventoryMovementLineFormSet, StockFilterForm, StockInitialForm
 from .models import InventoryMovement, Stock
 from .services import post_inventory_movement
 
@@ -24,41 +24,19 @@ class StockAccessMixin(LoginRequiredMixin, UserPassesTestMixin):
 
 
 class StockListView(StockAccessMixin, ListView):
-	allowed_roles = StockAccessMixin.allowed_roles | {User.ROLE_CAJERO}
 	model = Stock
 	template_name = "inventory/list.html"
 	context_object_name = "stocks"
 	paginate_by = 20
-	queryset = Stock.objects.select_related(
-		"product", "branch", "product__unit_measure", "product__category"
-	)
+	queryset = Stock.objects.select_related("product", "branch", "product__unit_measure")
 
 	def get_queryset(self):
 		queryset = super().get_queryset()
-		filter_data = self.request.GET.copy()
-		if self.request.user.role == User.ROLE_CAJERO:
-			filter_data["branch"] = str(self.request.user.branch_id or "")
-		elif "branch" not in filter_data and self.request.user.branch_id:
-			filter_data["branch"] = str(self.request.user.branch_id)
-		self.filter_form = StockFilterForm(filter_data)
-		if self.request.user.role == User.ROLE_CAJERO:
-			self.filter_form.fields["branch"].queryset = self.filter_form.fields["branch"].queryset.filter(
-				pk=self.request.user.branch_id
-			)
+		self.filter_form = StockFilterForm(self.request.GET or None)
 		if not self.filter_form.is_valid():
 			return queryset.none()
-		filters = self.filter_form.cleaned_data
-		if filters["q"]:
-			query = filters["q"]
-			queryset = queryset.filter(
-				Q(product__sku__icontains=query) | Q(product__name__icontains=query)
-			)
-		if filters["category"]:
-			queryset = queryset.filter(product__category=filters["category"])
-		if branch := filters["branch"]:
+		if branch := self.filter_form.cleaned_data["branch"]:
 			queryset = queryset.filter(branch=branch)
-		if filters["with_stock"]:
-			queryset = queryset.filter(quantity__gt=0)
 		return queryset
 
 	def get_context_data(self, **kwargs):
@@ -81,29 +59,6 @@ class StockCreateView(StockAccessMixin, CreateView):
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		context["title"] = "Registrar existencia inicial"
-		return context
-
-
-class StockLocationUpdateView(StockAccessMixin, UpdateView):
-	allowed_roles = StockAccessMixin.allowed_roles | {User.ROLE_CAJERO}
-	model = Stock
-	form_class = StockLocationForm
-	template_name = "inventory/form.html"
-	success_url = reverse_lazy("inventory:list")
-
-	def get_queryset(self):
-		queryset = super().get_queryset()
-		if self.request.user.role in {User.ROLE_ALMACENERO, User.ROLE_CAJERO}:
-			queryset = queryset.filter(branch_id=self.request.user.branch_id)
-		return queryset
-
-	def form_valid(self, form):
-		messages.success(self.request, "Ubicación actualizada correctamente.")
-		return super().form_valid(form)
-
-	def get_context_data(self, **kwargs):
-		context = super().get_context_data(**kwargs)
-		context["title"] = f"Ubicación de {self.object.product.name}"
 		return context
 
 

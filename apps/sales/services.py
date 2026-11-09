@@ -93,8 +93,6 @@ def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=Non
 		raise ValidationError("El método de pago seleccionado está deshabilitado.")
 	if sale.user_id != user.id or sale.branch_id != user.branch_id:
 		raise ValidationError("No puedes completar esta venta.")
-	if sale_date is not None and user.role != User.ROLE_ADMIN:
-		raise ValidationError("Solo un administrador puede seleccionar la fecha de venta.")
 	cash_register = CashRegister.objects.select_for_update().filter(pk=sale.cash_register_id, user=user, branch=sale.branch, status=CashRegister.STATUS_OPEN).first()
 	if not cash_register:
 		raise ValidationError("La caja asociada no está abierta.")

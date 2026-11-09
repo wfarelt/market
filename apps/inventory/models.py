@@ -25,12 +25,7 @@ class Stock(TimeStampedModel):
 		default=0,
 		verbose_name="existencia",
 	)
-	location = models.CharField(
-		max_length=150,
-		blank=True,
-		default="",
-		verbose_name="ubicación",
-	)
+	location = models.CharField(max_length=150, default="", blank=True, verbose_name="ubicación")
 
 	class Meta:
 		ordering = ["branch__name", "product__name"]
