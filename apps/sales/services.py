@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -8,6 +9,7 @@ from apps.cash.models import CashMovement, CashRegister
 from apps.inventory.models import InventoryMovement, InventoryMovementLine
 from apps.inventory.services import post_inventory_movement
 from apps.settings_app.models import CompanySettings
+from apps.users.models import User
 
 from .models import Sale, SaleItem
 
@@ -83,7 +85,7 @@ def clear_sale_items(*, sale, user):
 
 
 @transaction.atomic
-def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=None, discount_amount=None):
+def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=None, discount_amount=None, sale_date: date | None = None):
 	sale = Sale.objects.select_for_update().prefetch_related("items__product").get(pk=sale.pk)
 	if sale.status != Sale.STATUS_DRAFT:
 		raise ValidationError("La venta ya fue procesada.")
@@ -91,6 +93,8 @@ def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=Non
 		raise ValidationError("El método de pago seleccionado está deshabilitado.")
 	if sale.user_id != user.id or sale.branch_id != user.branch_id:
 		raise ValidationError("No puedes completar esta venta.")
+	if sale_date is not None and user.role != User.ROLE_ADMIN:
+		raise ValidationError("Solo un administrador puede seleccionar la fecha de venta.")
 	cash_register = CashRegister.objects.select_for_update().filter(pk=sale.cash_register_id, user=user, branch=sale.branch, status=CashRegister.STATUS_OPEN).first()
 	if not cash_register:
 		raise ValidationError("La caja asociada no está abierta.")
@@ -122,10 +126,16 @@ def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=Non
 	cash_movement = None
 	if payment_method != Sale.PAYMENT_CREDIT:
 		cash_movement = CashMovement.objects.create(cash_register=cash_register, movement_type=CashMovement.TYPE_SALE, amount=sale.total, description=f"Venta {sale.number} ({payment_method})", created_by=user)
-	sale.status, sale.payment_method, sale.inventory_movement, sale.cash_movement, sale.completed_at = Sale.STATUS_COMPLETED, payment_method, movement, cash_movement, timezone.now()
+	completed_at = timezone.now()
+	if sale_date is not None:
+		completed_at = timezone.localtime(completed_at).replace(
+			year=sale_date.year,
+			month=sale_date.month,
+			day=sale_date.day,
+		)
+	sale.status, sale.payment_method, sale.inventory_movement, sale.cash_movement, sale.completed_at = Sale.STATUS_COMPLETED, payment_method, movement, cash_movement, completed_at
 	sale.save(update_fields=["status", "payment_method", "customer", "cash_received", "change_amount", "inventory_movement", "cash_movement", "completed_at", "updated_at"])
 	if payment_method == Sale.PAYMENT_CREDIT:
 		from apps.customers.services import create_credit_from_sale
 		create_credit_from_sale(sale=sale, user=user)
 	return sale
-

@@ -108,6 +108,7 @@ class PosView(PosAccessMixin, TemplateView):
 			categories=Category.objects.filter(is_active=True),
 			brands=Brand.objects.filter(is_active=True),
 			checkout_form=CheckoutForm(
+				user=self.request.user,
 				initial={
 					"discount_amount": sale.discount_amount,
 					"customer": self.request.GET.get("customer", ""),
@@ -280,7 +281,7 @@ class PosCheckoutView(PosAccessMixin, TemplateView):
 			status=Sale.STATUS_DRAFT,
 			cash_register__status=CashRegister.STATUS_OPEN,
 		)
-		form = CheckoutForm(request.POST)
+		form = CheckoutForm(request.POST, user=request.user)
 		if form.is_valid():
 			try:
 				confirm_sale(sale=sale, user=request.user, **form.cleaned_data)
@@ -300,4 +301,3 @@ class SaleDetailView(SalesAccessMixin, TemplateView):
 		context = super().get_context_data(**kwargs)
 		context["sale"] = get_object_or_404(Sale.objects.prefetch_related("items__product"), pk=self.kwargs["pk"], user=self.request.user)
 		return context
-

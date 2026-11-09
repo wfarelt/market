@@ -49,6 +49,60 @@ class SaleServiceTests(TestCase):
 		with self.assertRaisesMessage(ValidationError, "El método de pago seleccionado está deshabilitado."):
 			confirm_sale(sale=sale, user=self.user, payment_method=Sale.PAYMENT_QR)
 
+	def test_confirm_sale_rejects_selected_date_for_non_admin(self):
+		sale = create_sale(user=self.user)
+		add_sale_item(sale=sale, product=self.product, quantity=1, user=self.user)
+
+		with self.assertRaisesMessage(ValidationError, "Solo un administrador puede seleccionar la fecha de venta."):
+			confirm_sale(
+				sale=sale,
+				user=self.user,
+				payment_method=Sale.PAYMENT_CASH,
+				cash_received=Decimal("20"),
+				sale_date=timezone.localdate() - timedelta(days=1),
+			)
+
+	def test_admin_can_select_sale_date_when_completing_sale(self):
+		admin = User.objects.create_user(username="admin", role=User.ROLE_ADMIN, branch=self.branch)
+		open_cash_register(user=admin, opening_amount=Decimal("100"))
+		sale = create_sale(user=admin)
+		add_sale_item(sale=sale, product=self.product, quantity=1, user=admin)
+		selected_date = timezone.localdate() - timedelta(days=1)
+		self.client.force_login(admin)
+
+		response = self.client.get(reverse("sales:pos"))
+
+		self.assertContains(response, 'name="sale_date"')
+		self.assertContains(response, f'value="{timezone.localdate().isoformat()}"')
+		response = self.client.post(reverse("sales:checkout"), {
+			"payment_method": Sale.PAYMENT_CASH,
+			"cash_received": "20",
+			"sale_date": selected_date.isoformat(),
+		})
+
+		sale.refresh_from_db()
+		self.assertEqual(response.status_code, 302)
+		self.assertEqual(timezone.localtime(sale.completed_at).date(), selected_date)
+
+	def test_non_admin_cannot_select_sale_date_in_pos_or_checkout(self):
+		sale = create_sale(user=self.user)
+		add_sale_item(sale=sale, product=self.product, quantity=1, user=self.user)
+		selected_date = timezone.localdate() - timedelta(days=1)
+		self.client.force_login(self.user)
+
+		response = self.client.get(reverse("sales:pos"))
+
+		self.assertNotContains(response, 'name="sale_date"')
+		response = self.client.post(reverse("sales:checkout"), {
+			"payment_method": Sale.PAYMENT_CASH,
+			"cash_received": "20",
+			"sale_date": selected_date.isoformat(),
+		})
+
+		sale.refresh_from_db()
+		self.assertEqual(response.status_code, 302)
+		self.assertEqual(timezone.localtime(sale.completed_at).date(), timezone.localdate())
+
 	def test_pos_redirects_to_cash_when_user_has_no_open_register(self):
 		self.user.cash_registers.update(status=CashRegister.STATUS_CLOSED)
 		self.client.force_login(self.user)
@@ -146,4 +200,3 @@ class SaleServiceTests(TestCase):
 
 		response = self.client.get(reverse("sales:list"), {"date": timezone.localdate(sale.completed_at).isoformat()})
 		self.assertContains(response, sale.number)
-

@@ -257,6 +257,16 @@
                             <strong id="sale-total" class="font-monospace fs-4 text-primary" data-total="{{ sale.total }}">{{ sale.total }} Bs</strong>
                         </div>
 
+                        {% if checkout_form.sale_date %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small" for="{{ checkout_form.sale_date.id_for_label }}">Fecha de venta</label>
+                            {{ checkout_form.sale_date }}
+                            {% if checkout_form.sale_date.errors %}
+                            <div class="invalid-feedback d-block">{{ checkout_form.sale_date.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <label class="form-label fw-semibold small mb-0" for="{{ checkout_form.customer.id_for_label }}">Cliente</label>
@@ -326,6 +336,10 @@
                                         <dl class="row mb-0">
                                             <dt class="col-5">Cliente</dt>
                                             <dd class="col-7" id="confirmation-customer">Sin cliente</dd>
+                                            {% if checkout_form.sale_date %}
+                                            <dt class="col-5">Fecha de venta</dt>
+                                            <dd class="col-7" id="confirmation-sale-date"></dd>
+                                            {% endif %}
                                             <dt class="col-5">Método de pago</dt>
                                             <dd class="col-7" id="confirmation-payment-method"></dd>
                                             <dt class="col-5">Subtotal</dt>
@@ -433,6 +447,7 @@
     const paymentSelect = document.getElementById("{{ checkout_form.payment_method.id_for_label }}");
     const cashReceived = document.getElementById("{{ checkout_form.cash_received.id_for_label }}");
     const discountInput = document.getElementById("{{ checkout_form.discount_amount.id_for_label }}");
+    const saleDateInput = document.getElementById("{{ checkout_form.sale_date.id_for_label }}");
     const saleSubtotal = document.getElementById("sale-subtotal");
     const saleTotal = document.getElementById("sale-total");
     const changeAmount = document.getElementById("change-amount");
@@ -515,6 +530,10 @@
         document.getElementById("confirmation-customer").textContent = customerSelect.value
             ? selectedCustomer.textContent.trim()
             : "Sin cliente";
+        const saleDateSummary = document.getElementById("confirmation-sale-date");
+        if (saleDateInput && saleDateSummary) {
+            saleDateSummary.textContent = saleDateInput.value;
+        }
         if (selectedPaymentButton) {
             const badge = document.createElement("span");
             const style = selectedPaymentButton.dataset.style;
