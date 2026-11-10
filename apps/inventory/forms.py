@@ -63,6 +63,17 @@ class StockInitialForm(forms.ModelForm):
 		self.fields["quantity"].widget.attrs["step"] = "1"
 
 
+class StockLocationForm(forms.ModelForm):
+	class Meta:
+		model = Stock
+		fields = ["location"]
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.fields["location"].widget.attrs["class"] = "form-control"
+		self.fields["location"].widget.attrs["placeholder"] = "Ubicación del producto (opcional)"
+
+
 class InventoryMovementForm(forms.ModelForm):
 	class Meta:
 		model = InventoryMovement

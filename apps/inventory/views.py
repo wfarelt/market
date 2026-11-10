@@ -11,7 +11,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.users.models import User
 
-from .forms import InventoryMovementFilterForm, InventoryMovementForm, InventoryMovementLineFormSet, StockFilterForm, StockInitialForm
+from .forms import InventoryMovementFilterForm, InventoryMovementForm, InventoryMovementLineFormSet, StockFilterForm, StockInitialForm, StockLocationForm
 from .models import InventoryMovement, Stock
 from .services import post_inventory_movement
 
@@ -59,6 +59,23 @@ class StockCreateView(StockAccessMixin, CreateView):
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		context["title"] = "Registrar existencia inicial"
+		return context
+
+
+class StockLocationUpdateView(StockAccessMixin, UpdateView):
+	model = Stock
+	form_class = StockLocationForm
+	template_name = "inventory/form.html"
+	success_url = reverse_lazy("inventory:list")
+	allowed_roles = {User.ROLE_SUPERADMIN, User.ROLE_ADMIN, User.ROLE_ALMACENERO}
+
+	def form_valid(self, form):
+		messages.success(self.request, "Ubicación actualizada correctamente.")
+		return super().form_valid(form)
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context["title"] = f"Actualizar ubicación de {self.object.product.name}"
 		return context
 
 
