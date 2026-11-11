@@ -70,6 +70,39 @@ class StockModelTests(TestCase):
 
 		self.assertEqual(list(response.context["stocks"]), [central_stock])
 
+	def test_stock_list_can_filter_to_products_with_existence(self):
+		positive_stock = Stock.objects.create(product=self.product, branch=self.central, quantity=10)
+		zero_stock = Stock.objects.create(
+			product=Product.objects.create(name="Agua", sku="AGUA-600"),
+			branch=self.central,
+			quantity=0,
+		)
+		admin = User.objects.create_user(
+			username="admin",
+			branch=self.central,
+			role=User.ROLE_ADMIN,
+		)
+		self.client.force_login(admin)
+
+		default_response = self.client.get(reverse("inventory:list"))
+		filtered_response = self.client.get(reverse("inventory:list"), {"has_stock": "on"})
+
+		self.assertCountEqual(list(default_response.context["stocks"]), [positive_stock, zero_stock])
+		self.assertEqual(list(filtered_response.context["stocks"]), [positive_stock])
+
+	def test_stock_list_is_available_to_all_roles(self):
+		for role in User.ROLE_CHOICES:
+			role_code = role[0]
+			user = User.objects.create_user(
+				username=f"user_{role_code}",
+				branch=None if role_code == User.ROLE_SUPERADMIN else self.central,
+				role=role_code,
+			)
+			with self.subTest(role=role_code):
+				self.client.force_login(user)
+				response = self.client.get(reverse("inventory:list"))
+				self.assertEqual(response.status_code, 200)
+
 
 class InventoryMovementServiceTests(TestCase):
 	def setUp(self):
@@ -202,4 +235,3 @@ class InventoryMovementFilterTests(TestCase):
 
 		filter_form = InventoryMovementFilterForm({"start_date": "2026-09-20", "end_date": "2026-09-01"})
 		self.assertFalse(filter_form.is_valid())
-

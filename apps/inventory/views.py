@@ -29,19 +29,27 @@ class StockListView(StockAccessMixin, ListView):
 	context_object_name = "stocks"
 	paginate_by = 20
 	queryset = Stock.objects.select_related("product", "branch", "product__unit_measure")
+	allowed_roles = {
+		User.ROLE_SUPERADMIN,
+		User.ROLE_ADMIN,
+		User.ROLE_ALMACENERO,
+		User.ROLE_CAJERO,
+	}
 
 	def get_queryset(self):
 		queryset = super().get_queryset()
-		self.filter_form = StockFilterForm(self.request.GET or None)
+		self.filter_form = StockFilterForm(self.request.GET)
 		if not self.filter_form.is_valid():
 			return queryset.none()
 		if branch := self.filter_form.cleaned_data["branch"]:
 			queryset = queryset.filter(branch=branch)
+		if self.filter_form.cleaned_data["has_stock"]:
+			queryset = queryset.filter(quantity__gt=0)
 		return queryset
 
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
-		context["filter_form"] = getattr(self, "filter_form", StockFilterForm(self.request.GET or None))
+		context["filter_form"] = getattr(self, "filter_form", StockFilterForm(self.request.GET))
 		return context
 
 
@@ -227,4 +235,3 @@ class InventoryMovementPostView(StockAccessMixin, View):
 		else:
 			messages.success(request, "Movimiento confirmado correctamente.")
 		return redirect(reverse("inventory:movement-detail", kwargs={"pk": pk}))
-

@@ -42,10 +42,12 @@ class StockFilterForm(forms.Form):
 		label="Sucursal",
 		empty_label="Todas las sucursales",
 	)
+	has_stock = forms.BooleanField(required=False, label="Solo con existencia")
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.fields["branch"].widget.attrs["class"] = "form-select"
+		self.fields["has_stock"].widget.attrs["class"] = "form-check-input"
 
 
 class StockInitialForm(forms.ModelForm):
@@ -125,4 +127,3 @@ InventoryMovementLineFormSet = inlineformset_factory(
 	extra=1,
 	can_delete=True,
 )
-
