@@ -20,6 +20,9 @@
     {% include "partials/_sidebar.html" %}
 
     <main class="flex-grow-1 p-4">
+      {% if request.user.is_authenticated and business_date_settings.mode == 'HISTORICAL' %}
+      <div class="alert alert-warning" role="status">Carga histórica · Fecha de trabajo global: <strong>{{ business_date_settings.business_date|date:"d/m/Y" }}</strong></div>
+      {% endif %}
       {% include "partials/_messages.html" %}
       {% block content %}{% endblock %}
     </main>

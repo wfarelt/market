@@ -7,6 +7,7 @@ from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, FormView, ListView, UpdateView
 
 from apps.branches.models import Branch
+from apps.settings_app.services import get_business_date
 from apps.users.models import User
 
 from .forms import CashClosureCorrectionForm, CashRegisterCloseForm, CashRegisterOpenForm, ExpenseCategoryForm, PettyCashExpenseForm
@@ -141,6 +142,7 @@ class CashRegisterOpenView(CashAccessMixin, FormView):
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		context["title"] = "Abrir caja"
+		context["business_date"] = get_business_date()
 		last_register = self.get_last_closed_register()
 		if last_register:
 			context["last_closed_register"] = last_register
@@ -261,4 +263,3 @@ class CashRegisterDetailView(CashAccessMixin, DetailView):
 			and (self.request.user.role == User.ROLE_SUPERADMIN or self.object.branch_id == self.request.user.branch_id)
 		)
 		return context
-

@@ -81,8 +81,13 @@ class InventoryMovementForm(forms.ModelForm):
 		model = InventoryMovement
 		fields = ["movement_date", "movement_type", "branch", "notes"]
 
-	def __init__(self, *args, **kwargs):
+	def __init__(self, *args, historical_date=None, **kwargs):
 		super().__init__(*args, **kwargs)
+		self.historical_date = historical_date
+		if historical_date:
+			if self.instance._state.adding:
+				self.initial["movement_date"] = historical_date
+			self.fields["movement_date"].help_text = "Para confirmar, la fecha del movimiento debe coincidir con la fecha de trabajo."
 		self.fields["movement_type"].choices = [
 			choice for choice in InventoryMovement.TYPE_CHOICES
 			if choice[0] != InventoryMovement.TYPE_TRANSFER
@@ -95,7 +100,7 @@ class InventoryMovementForm(forms.ModelForm):
 		self.fields["movement_date"].required = False
 
 	def clean_movement_date(self):
-		return self.cleaned_data.get("movement_date") or timezone.localdate()
+		return self.cleaned_data.get("movement_date") or self.historical_date or timezone.localdate()
 
 
 class InventoryMovementLineForm(forms.ModelForm):

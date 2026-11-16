@@ -13,8 +13,13 @@ class PurchaseForm(forms.ModelForm):
 			"notes": forms.Textarea(attrs={"rows": 2}),
 		}
 
-	def __init__(self, *args, **kwargs):
+	def __init__(self, *args, historical_date=None, **kwargs):
 		super().__init__(*args, **kwargs)
+		self.historical_date = historical_date
+		if historical_date:
+			if not self.instance.pk:
+				self.initial["purchase_date"] = historical_date
+			self.fields["purchase_date"].help_text = "Para confirmar, la fecha de compra debe coincidir con la fecha de trabajo."
 		self.fields["supplier"].queryset = Supplier.objects.filter(is_active=True)
 		if self.instance.supplier_id:
 			self.fields["supplier"].queryset = Supplier.objects.filter(is_active=True) | Supplier.objects.filter(pk=self.instance.supplier_id)
@@ -60,4 +65,3 @@ class PurchaseItemFormSetBase(BaseInlineFormSet):
 
 
 PurchaseItemFormSet = inlineformset_factory(Purchase, PurchaseItem, form=PurchaseItemForm, formset=PurchaseItemFormSetBase, extra=1, can_delete=True)
-

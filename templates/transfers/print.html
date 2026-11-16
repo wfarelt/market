@@ -47,7 +47,8 @@
 
 	<table class="info-table">
 		<tr><td class="label">N° Traspaso</td><td>{{ transfer.number }}</td><td class="label">Fecha creación</td><td>{{ transfer.created_at|date:"d/m/Y H:i" }}</td></tr>
-		<tr><td class="label">Fecha envío</td><td>{{ transfer.sent_at|date:"d/m/Y H:i"|default:"-" }}</td><td class="label">Fecha recepción</td><td>{{ transfer.received_at|date:"d/m/Y H:i"|default:"-" }}</td></tr>
+		<tr><td class="label">Fecha de negocio del envío</td><td colspan="3">{{ transfer.business_date|date:"d/m/Y"|default:"No determinada" }}</td></tr>
+		<tr><td class="label">Envío real</td><td>{{ transfer.sent_at|date:"d/m/Y H:i"|default:"-" }}</td><td class="label">Recepción real</td><td>{{ transfer.received_at|date:"d/m/Y H:i"|default:"-" }}</td></tr>
 	</table>
 
 	<div class="branch-box">

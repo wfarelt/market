@@ -25,7 +25,10 @@ class CashRegisterOpenForm(forms.Form):
 
 
 class CashRegisterCloseForm(forms.Form):
-	closing_amount = forms.DecimalField(max_digits=12, decimal_places=2, min_value=0, label="Monto contado")
+	closing_amount = forms.DecimalField(
+		max_digits=12, decimal_places=2, min_value=0, label="Monto total declarado",
+		help_text="Incluye efectivo y los pagos electrónicos registrados en esta caja.",
+	)
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -59,4 +62,3 @@ class PettyCashExpenseForm(forms.Form):
 		self.fields["category"].widget.attrs["class"] = "form-select"
 		self.fields["concept"].widget.attrs["class"] = "form-control"
 		self.fields["amount"].widget.attrs.update({"class": "form-control", "step": "0.01"})
-

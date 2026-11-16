@@ -10,10 +10,11 @@ from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.users.models import User
+from apps.settings_app.models import BusinessDateSettings
 
 from .forms import InventoryMovementFilterForm, InventoryMovementForm, InventoryMovementLineFormSet, StockFilterForm, StockInitialForm, StockLocationForm
 from .models import InventoryMovement, Stock
-from .services import post_inventory_movement
+from .services import create_initial_stock, post_inventory_movement
 
 
 class StockAccessMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -60,9 +61,13 @@ class StockCreateView(StockAccessMixin, CreateView):
 	allowed_roles = {User.ROLE_SUPERADMIN, User.ROLE_ADMIN}
 
 	def form_valid(self, form):
-		form.instance.created_by = self.request.user
+		try:
+			self.object = create_initial_stock(user=self.request.user, **form.cleaned_data)
+		except ValidationError as error:
+			form.add_error(None, error)
+			return self.form_invalid(form)
 		messages.success(self.request, "Existencia inicial registrada correctamente.")
-		return super().form_valid(form)
+		return redirect(self.get_success_url())
 
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
@@ -141,6 +146,13 @@ class StockAvailabilityView(StockAccessMixin, View):
 class InventoryMovementFormsetMixin(StockAccessMixin):
 	form_class = InventoryMovementForm
 	template_name = "inventory/movement_form.html"
+
+	def get_form_kwargs(self):
+		kwargs = super().get_form_kwargs()
+		settings = BusinessDateSettings.objects.get(pk=1)
+		if settings.mode == BusinessDateSettings.MODE_HISTORICAL:
+			kwargs["historical_date"] = settings.business_date
+		return kwargs
 
 	def get_formset(self, form=None):
 		return InventoryMovementLineFormSet(

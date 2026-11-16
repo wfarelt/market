@@ -121,6 +121,7 @@ class CreditPayment(TimeStampedModel):
 		related_name="received_credit_payments",
 		verbose_name="usuario",
 	)
+	business_date = models.DateField(null=True, blank=True, verbose_name="fecha de negocio")
 	amount = models.DecimalField(
 		max_digits=12,
 		decimal_places=2,
@@ -136,4 +137,3 @@ class CreditPayment(TimeStampedModel):
 
 	def __str__(self):
 		return f"Pago {self.amount} a {self.credit.number}"
-

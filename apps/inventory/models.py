@@ -64,6 +64,7 @@ class InventoryMovement(TimeStampedModel):
 
 	movement_type = models.CharField(max_length=20, choices=TYPE_CHOICES, verbose_name="tipo")
 	movement_date = models.DateField(default=timezone.localdate, verbose_name="fecha")
+	posted_at = models.DateTimeField(null=True, blank=True, verbose_name="confirmación real")
 	branch = models.ForeignKey(
 		Branch,
 		on_delete=models.PROTECT,
@@ -140,4 +141,3 @@ class InventoryMovementLine(TimeStampedModel):
 				raise ValidationError({"adjustment_direction": "Indica si el ajuste aumenta o disminuye la existencia."})
 		elif self.adjustment_direction:
 			raise ValidationError({"adjustment_direction": "Solo se permite en movimientos de ajuste."})
-

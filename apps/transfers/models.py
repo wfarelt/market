@@ -21,6 +21,7 @@ class Transfer(TimeStampedModel):
 	destination_branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name="incoming_transfers", verbose_name="sucursal destino")
 	status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_DRAFT)
 	notes = models.TextField(blank=True, verbose_name="observación")
+	business_date = models.DateField(null=True, blank=True, verbose_name="fecha de negocio del envío")
 	sent_at = models.DateTimeField(null=True, blank=True)
 	received_at = models.DateTimeField(null=True, blank=True)
 	cancelled_at = models.DateTimeField(null=True, blank=True)
@@ -72,4 +73,3 @@ class TransferItem(TimeStampedModel):
 			raise ValidationError({"sent_quantity": "No puede superar la cantidad solicitada."})
 		if self.received_quantity > self.sent_quantity:
 			raise ValidationError({"received_quantity": "No puede superar la cantidad enviada."})
-

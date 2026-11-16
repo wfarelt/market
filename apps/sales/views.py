@@ -11,17 +11,18 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.views.generic import ListView, TemplateView
 
 from apps.products.models import Brand, Category, Product
-from apps.settings_app.models import CompanySettings
+from apps.settings_app.models import BusinessDateSettings, CompanySettings
 from apps.users.models import User
 from apps.cash.models import CashRegister
 from apps.inventory.models import Stock
 
 from .forms import CheckoutForm
 from .models import Sale, SaleItem
-from .services import add_sale_item, calculate_totals, clear_sale_items, confirm_sale, create_sale, update_sale_discount
+from .services import add_sale_item, calculate_totals, clear_sale_items, confirm_sale, create_sale, update_historical_item_price, update_sale_discount
 
 
 class SalesAccessMixin(LoginRequiredMixin):
@@ -61,6 +62,7 @@ class PosView(PosAccessMixin, TemplateView):
 		context = super().get_context_data(**kwargs)
 		sale = self.get_sale()
 		cash_register = self.get_cash_register()
+		historical = BusinessDateSettings.objects.get(pk=1).mode == BusinessDateSettings.MODE_HISTORICAL
 		company_settings = CompanySettings.load()
 		payment_methods = [
 			{"code": Sale.PAYMENT_CASH, "label": "Efectivo", "icon": "cash", "style": "success"},
@@ -109,6 +111,8 @@ class PosView(PosAccessMixin, TemplateView):
 			brands=Brand.objects.filter(is_active=True),
 			checkout_form=CheckoutForm(
 				user=self.request.user,
+				cash_register=cash_register,
+				historical=historical,
 				initial={
 					"discount_amount": sale.discount_amount,
 					"customer": self.request.GET.get("customer", ""),
@@ -116,6 +120,8 @@ class PosView(PosAccessMixin, TemplateView):
 			),
 			payment_methods=payment_methods,
 			has_enabled_payment_methods=any(method["enabled"] for method in payment_methods),
+			historical=historical,
+			historical_cash_date_missing=historical and cash_register and not cash_register.business_date,
 		)
 		return context
 
@@ -159,6 +165,18 @@ class PosUpdateItemView(PosAccessMixin, TemplateView):
 				"discount": str(sale.discount_amount),
 				"total": str(sale.total),
 			})
+		return redirect("sales:pos")
+
+
+class PosUpdatePriceView(PosAccessMixin, TemplateView):
+	def post(self, request, item_id):
+		item = get_object_or_404(SaleItem, pk=item_id, sale__user=request.user)
+		try:
+			update_historical_item_price(item=item, unit_price=request.POST.get("unit_price"), user=request.user)
+		except ValidationError as error:
+			messages.error(request, "; ".join(error.messages))
+		else:
+			messages.success(request, "Precio de la venta actualizado.")
 		return redirect("sales:pos")
 
 
@@ -222,20 +240,27 @@ class SaleListView(SaleListAccessMixin, ListView):
 	context_object_name = "sales"
 	paginate_by = 20
 
+	@cached_property
+	def date_settings(self):
+		return BusinessDateSettings.objects.get(pk=1)
+
 	def get_selected_date(self):
 		date_value = self.request.GET.get("date", "")
+		default_date = (
+			self.date_settings.business_date
+			if self.date_settings.mode == BusinessDateSettings.MODE_HISTORICAL
+			else timezone.localdate()
+		)
 		try:
-			return date.fromisoformat(date_value) if date_value else timezone.localdate()
+			return date.fromisoformat(date_value) if date_value else default_date
 		except ValueError:
-			return timezone.localdate()
+			return default_date
 
 	def get_queryset(self):
-		selected_date = self.get_selected_date()
-		day_start = timezone.make_aware(datetime.combine(selected_date, time.min))
-		day_end = day_start + timedelta(days=1)
+		self.unknown_business_dates = 0
 		queryset = Sale.objects.select_related("customer", "user", "cash_register").exclude(
 			status=Sale.STATUS_DRAFT,
-		).filter(completed_at__gte=day_start, completed_at__lt=day_end)
+		)
 		user = self.request.user
 		if user.role != User.ROLE_SUPERADMIN:
 			queryset = queryset.filter(branch_id=user.branch_id)
@@ -255,13 +280,21 @@ class SaleListView(SaleListAccessMixin, ListView):
 			)
 		if status := self.request.GET.get("status"):
 			queryset = queryset.filter(status=status)
-		return queryset
+		selected_date = self.get_selected_date()
+		if self.date_settings.mode == BusinessDateSettings.MODE_HISTORICAL:
+			self.unknown_business_dates = queryset.filter(business_date__isnull=True).count()
+			return queryset.filter(business_date=selected_date)
+		day_start = timezone.make_aware(datetime.combine(selected_date, time.min))
+		day_end = day_start + timedelta(days=1)
+		return queryset.filter(completed_at__gte=day_start, completed_at__lt=day_end)
 
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		context["query"] = self.request.GET.get("q", "").strip()
 		context["selected_status"] = self.request.GET.get("status", "")
 		context["selected_date"] = self.get_selected_date().isoformat()
+		context["historical_dates"] = self.date_settings.mode == BusinessDateSettings.MODE_HISTORICAL
+		context["unknown_business_dates"] = self.unknown_business_dates
 		context["can_filter_users"] = self.request.user.role in {User.ROLE_ADMIN, User.ROLE_SUPERADMIN}
 		if context["can_filter_users"]:
 			context["sales_users"] = User.objects.order_by("username")
@@ -281,7 +314,11 @@ class PosCheckoutView(PosAccessMixin, TemplateView):
 			status=Sale.STATUS_DRAFT,
 			cash_register__status=CashRegister.STATUS_OPEN,
 		)
-		form = CheckoutForm(request.POST, user=request.user)
+		historical = BusinessDateSettings.objects.get(pk=1).mode == BusinessDateSettings.MODE_HISTORICAL
+		if historical and not sale.cash_register.business_date:
+			messages.error(request, "La caja no tiene fecha de negocio. Ciérrala y abre una nueva caja.")
+			return redirect("sales:pos")
+		form = CheckoutForm(request.POST, user=request.user, cash_register=sale.cash_register, historical=historical)
 		if form.is_valid():
 			try:
 				confirm_sale(sale=sale, user=request.user, **form.cleaned_data)

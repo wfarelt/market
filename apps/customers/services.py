@@ -2,7 +2,9 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from apps.cash.models import CashMovement
+from apps.cash.models import CashMovement, CashRegister
+from apps.settings_app.models import BusinessDateSettings
+from apps.settings_app.locking import lock_business_date
 from .models import Credit, CreditPayment, Customer
 from .validators import (
 	validate_credit_payment_amount,
@@ -73,8 +75,19 @@ def create_credit_from_sale(*, sale, user):
 
 @transaction.atomic
 def register_credit_payment(*, credit_pk, amount, user, notes=""):
-	cash_register = validate_user_open_cash_register(user)
+	date_settings = lock_business_date()
+	open_register = validate_user_open_cash_register(user)
+	cash_register = CashRegister.objects.select_for_update().filter(
+		pk=open_register.pk, user=user, branch=user.branch, status=CashRegister.STATUS_OPEN,
+	).first()
+	if not cash_register:
+		raise ValidationError("Debes tener una caja abierta para procesar este cobro.")
+	if date_settings.mode == BusinessDateSettings.MODE_HISTORICAL:
+		if not cash_register.business_date or cash_register.business_date != date_settings.business_date:
+			raise ValidationError("La fecha de negocio de la caja no coincide con la fecha de trabajo.")
 	credit = Credit.objects.select_for_update().select_related("customer", "branch").get(pk=credit_pk)
+	if date_settings.mode == BusinessDateSettings.MODE_HISTORICAL and credit.branch_id != cash_register.branch_id:
+		raise ValidationError("El crédito y la caja deben pertenecer a la misma sucursal.")
 	amount = validate_credit_payment_amount(credit, amount)
 
 	cash_movement = CashMovement.objects.create(
@@ -90,6 +103,7 @@ def register_credit_payment(*, credit_pk, amount, user, notes=""):
 		cash_register=cash_register,
 		cash_movement=cash_movement,
 		user=user,
+		business_date=cash_register.business_date,
 		amount=amount,
 		notes=notes.strip(),
 		created_by=user,
@@ -103,4 +117,3 @@ def register_credit_payment(*, credit_pk, amount, user, notes=""):
 
 	credit.save(update_fields=["balance", "status", "updated_at"])
 	return credit_payment
-

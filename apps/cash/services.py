@@ -2,6 +2,8 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from apps.settings_app.models import BusinessDateSettings
+from apps.settings_app.locking import lock_business_date
 from apps.users.models import User
 
 from .models import CashClosureCorrection, CashMovement, CashRegister, PettyCashExpense
@@ -9,12 +11,14 @@ from .models import CashClosureCorrection, CashMovement, CashRegister, PettyCash
 
 @transaction.atomic
 def open_cash_register(*, user, opening_amount, notes=""):
+	date_settings = lock_business_date()
 	if not user.branch_id:
 		raise ValidationError("El usuario debe tener una sucursal asignada.")
 	if CashRegister.objects.select_for_update().filter(user=user, status=CashRegister.STATUS_OPEN).exists():
 		raise ValidationError("El usuario ya tiene una caja abierta.")
 	try:
-		cash_register = CashRegister.objects.create(user=user, branch=user.branch, opening_amount=opening_amount, notes=notes, created_by=user)
+		business_date = date_settings.business_date if date_settings.mode == BusinessDateSettings.MODE_HISTORICAL else timezone.localdate()
+		cash_register = CashRegister.objects.create(user=user, branch=user.branch, business_date=business_date, opening_amount=opening_amount, notes=notes, created_by=user)
 	except IntegrityError as error:
 		raise ValidationError("El usuario ya tiene una caja abierta.") from error
 	CashMovement.objects.create(cash_register=cash_register, movement_type=CashMovement.TYPE_OPENING, amount=opening_amount, description="Fondo de apertura", created_by=user)
@@ -72,9 +76,13 @@ def correct_cash_closing(*, cash_register, user, closing_amount, reason):
 
 @transaction.atomic
 def register_petty_cash_expense(*, cash_register, category, concept, amount, user, movement_type=CashMovement.TYPE_PETTY_CASH_EXPENSE):
+	date_settings = lock_business_date()
 	cash_register = CashRegister.objects.select_for_update().get(pk=cash_register.pk)
 	if cash_register.status != CashRegister.STATUS_OPEN:
 		raise ValidationError("La caja está cerrada.")
+	if date_settings.mode == BusinessDateSettings.MODE_HISTORICAL:
+		if not cash_register.business_date or cash_register.business_date != date_settings.business_date:
+			raise ValidationError("La fecha de negocio de la caja no coincide con la fecha de trabajo.")
 	current_expenses = cash_register.total_expenses
 	if current_expenses + amount > cash_register.opening_amount:
 		remaining = cash_register.remaining_petty_cash
@@ -83,4 +91,3 @@ def register_petty_cash_expense(*, cash_register, category, concept, amount, use
 		)
 	movement = CashMovement.objects.create(cash_register=cash_register, movement_type=movement_type, amount=amount, description=concept, created_by=user)
 	return PettyCashExpense.objects.create(cash_register=cash_register, category=category, concept=concept, amount=amount, user=user, movement=movement, created_by=user)
-

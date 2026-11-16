@@ -8,6 +8,7 @@ from django.utils import timezone
 from apps.branches.models import Branch
 from apps.cash.models import CashRegister
 from apps.sales.models import Sale
+from apps.settings_app.models import BusinessDateSettings
 from apps.users.models import User
 
 
@@ -117,3 +118,78 @@ class SaleListViewTests(TestCase):
 		self.assertEqual(second_page.context["page_obj"].paginator.count, 21)
 		self.assertTrue(all(sale.user_id == self.cashier.pk for sale in second_page.context["sales"]))
 
+	def test_automatic_mode_keeps_registered_sale_date(self):
+		past = timezone.localdate() - timedelta(days=4)
+		Sale.objects.filter(pk=self.cashier_sale.pk).update(business_date=past)
+		self.client.force_login(self.cashier)
+		response = self.client.get(reverse("sales:list"))
+		self.assertContains(response, self.cashier_sale.number)
+		self.assertContains(response, "Filtro por fecha de venta registrada")
+		response = self.client.get(reverse("sales:list"), {"date": past.isoformat()})
+		self.assertNotContains(response, self.cashier_sale.number)
+
+	def test_historical_mode_filters_and_displays_business_date(self):
+		past = timezone.localdate() - timedelta(days=4)
+		BusinessDateSettings.objects.filter(pk=1).update(mode=BusinessDateSettings.MODE_HISTORICAL, business_date=past)
+		Sale.objects.filter(pk=self.cashier_sale.pk).update(business_date=past, confirmed_at=timezone.now())
+		Sale.objects.filter(pk=self.other_sale.pk).update(business_date=timezone.localdate())
+		cancelled = self.create_sale(self.cashier, status=Sale.STATUS_CANCELLED)
+		Sale.objects.filter(pk=cancelled.pk).update(business_date=past)
+		self.client.force_login(self.admin)
+		response = self.client.get(reverse("sales:list"))
+		self.assertContains(response, f'value="{past.isoformat()}"')
+		self.assertContains(response, "Filtro por fecha de negocio")
+		self.assertContains(response, past.strftime("%d/%m/%Y"))
+		self.assertContains(response, self.cashier_sale.number)
+		self.assertContains(response, cancelled.number)
+		self.assertNotContains(response, self.other_sale.number)
+		response = self.client.get(reverse("sales:list"), {"date": timezone.localdate().isoformat()})
+		self.assertContains(response, self.other_sale.number)
+		self.assertNotContains(response, self.cashier_sale.number)
+
+	def test_historical_unknown_dates_follow_permissions_and_filters(self):
+		past = timezone.localdate() - timedelta(days=4)
+		BusinessDateSettings.objects.filter(pk=1).update(mode=BusinessDateSettings.MODE_HISTORICAL, business_date=past)
+		Sale.objects.filter(pk=self.cashier_sale.pk).update(business_date=past)
+		self.client.force_login(self.admin)
+		response = self.client.get(reverse("sales:list"))
+		self.assertEqual(response.context["unknown_business_dates"], 1)
+		self.assertContains(response, "No se incluyen 1 ventas sin fecha de negocio")
+		self.assertContains(response, "no se puede determinar si corresponden al día seleccionado")
+		response = self.client.get(reverse("sales:list"), {"user": self.cashier.pk})
+		self.assertEqual(response.context["unknown_business_dates"], 0)
+		self.client.force_login(self.cashier)
+		response = self.client.get(reverse("sales:list"))
+		self.assertEqual(response.context["unknown_business_dates"], 0)
+		self.client.force_login(self.superadmin)
+		response = self.client.get(reverse("sales:list"))
+		self.assertEqual(response.context["unknown_business_dates"], 2)
+
+	def test_historical_status_and_search_apply_before_unknown_date_count(self):
+		past = timezone.localdate() - timedelta(days=4)
+		BusinessDateSettings.objects.filter(pk=1).update(mode=BusinessDateSettings.MODE_HISTORICAL, business_date=past)
+		cancelled = self.create_sale(self.cashier, status=Sale.STATUS_CANCELLED)
+		self.create_sale(self.cashier, status=Sale.STATUS_DRAFT)
+		self.client.force_login(self.admin)
+		response = self.client.get(reverse("sales:list"), {"status": Sale.STATUS_CANCELLED, "q": cancelled.number})
+		self.assertEqual(response.context["unknown_business_dates"], 1)
+		self.assertEqual(list(response.context["sales"]), [])
+		response = self.client.get(reverse("sales:list"), {"status": Sale.STATUS_COMPLETED, "q": cancelled.number})
+		self.assertEqual(response.context["unknown_business_dates"], 0)
+		response = self.client.get(reverse("sales:list"), {"user": "invalid"})
+		self.assertEqual(response.context["unknown_business_dates"], 0)
+
+	def test_historical_filters_and_pagination_preserve_scope(self):
+		past = timezone.localdate() - timedelta(days=4)
+		BusinessDateSettings.objects.filter(pk=1).update(mode=BusinessDateSettings.MODE_HISTORICAL, business_date=past)
+		for _ in range(21):
+			sale = self.create_sale(self.cashier, status=Sale.STATUS_CANCELLED)
+			Sale.objects.filter(pk=sale.pk).update(business_date=past)
+		self.client.force_login(self.admin)
+		params = {"date": past.isoformat(), "status": Sale.STATUS_CANCELLED, "user": self.cashier.pk}
+		response = self.client.get(reverse("sales:list"), params)
+		self.assertEqual(response.context["page_obj"].paginator.count, 21)
+		self.assertContains(response, "page=2")
+		response = self.client.get(reverse("sales:list"), {**params, "page": 2})
+		self.assertEqual(response.context["page_obj"].paginator.count, 21)
+		self.assertEqual(len(response.context["sales"]), 1)

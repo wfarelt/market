@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import CompanySettings
+from .models import BusinessDateSettings, CompanySettings
 
 
 class CompanySettingsForm(forms.ModelForm):
@@ -25,3 +25,15 @@ class CompanySettingsForm(forms.ModelForm):
 			"enable_credit_payment": forms.CheckboxInput(attrs={"class": "form-check-input"}),
 		}
 
+
+class BusinessDateForm(forms.Form):
+	mode = forms.ChoiceField(choices=BusinessDateSettings.MODE_CHOICES, label="Modo")
+	business_date = forms.DateField(
+		required=False,
+		label="Fecha de trabajo",
+		widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+	)
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.fields["mode"].widget.attrs["class"] = "form-select"

@@ -20,7 +20,10 @@
         <div class="row g-3">
             <div class="col-md-4"><span class="text-muted small d-block">Sucursal origen</span><strong>{{ transfer.origin_branch }}</strong></div>
             <div class="col-md-4"><span class="text-muted small d-block">Sucursal destino</span><strong>{{ transfer.destination_branch }}</strong></div>
-            <div class="col-md-4"><span class="text-muted small d-block">Creado</span><strong>{{ transfer.created_at|date:"d/m/Y H:i" }}</strong></div>
+            <div class="col-md-4"><span class="text-muted small d-block">Fecha de negocio del envío</span><strong>{{ transfer.business_date|date:"d/m/Y"|default:"No determinada" }}</strong></div>
+            <div class="col-md-4"><span class="text-muted small d-block">Creación real</span><strong>{{ transfer.created_at|date:"d/m/Y H:i" }}</strong></div>
+            <div class="col-md-4"><span class="text-muted small d-block">Envío real</span><strong>{{ transfer.sent_at|date:"d/m/Y H:i"|default:"No disponible" }}</strong></div>
+            <div class="col-md-4"><span class="text-muted small d-block">Recepción real</span><strong>{{ transfer.received_at|date:"d/m/Y H:i"|default:"No disponible" }}</strong></div>
             {% if transfer.notes %}<div class="col-12"><span class="text-muted small d-block">Observación</span><span>{{ transfer.notes }}</span></div>{% endif %}
         </div>
     </div>

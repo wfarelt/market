@@ -32,9 +32,14 @@ class CheckoutForm(forms.Form):
 	)
 	cash_received = forms.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=0, label="Efectivo recibido")
 
-	def __init__(self, *args, user, **kwargs):
+	def __init__(self, *args, user, cash_register=None, historical=False, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.initial.setdefault("sale_date", timezone.localdate())
+		if historical:
+			self.initial["sale_date"] = cash_register.business_date if cash_register else None
+			self.fields["sale_date"].widget.attrs["readonly"] = True
+			self.fields["sale_date"].help_text = "La fecha corresponde a la caja y no se puede modificar."
+		else:
+			self.initial.setdefault("sale_date", timezone.localdate())
 		self.fields["payment_method"].choices = CompanySettings.load().enabled_payment_choices(Sale.PAYMENT_CHOICES)
 		self.fields["payment_method"].widget.attrs["class"] = "form-select"
 		self.fields["customer"].widget.attrs["class"] = "form-select"

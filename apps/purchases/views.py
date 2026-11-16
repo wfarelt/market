@@ -4,6 +4,8 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, UpdateView, View
 
+from apps.settings_app.models import BusinessDateSettings
+
 from .forms import PurchaseForm, PurchaseItemFormSet, SupplierForm
 from .models import Purchase, Supplier
 from .permissions import PurchaseAccessMixin
@@ -82,6 +84,13 @@ class PurchaseFormsetMixin(PurchaseAccessMixin):
 	form_class = PurchaseForm
 	template_name = "purchases/form.html"
 
+	def get_form_kwargs(self):
+		kwargs = super().get_form_kwargs()
+		settings = BusinessDateSettings.objects.get(pk=1)
+		if settings.mode == BusinessDateSettings.MODE_HISTORICAL:
+			kwargs["historical_date"] = settings.business_date
+		return kwargs
+
 	def get_formset(self):
 		return PurchaseItemFormSet(self.request.POST or None, instance=self.object)
 
@@ -159,4 +168,3 @@ class PurchaseCancelView(PurchaseAccessMixin, View):
 		else:
 			messages.success(request, "Compra anulada correctamente.")
 		return redirect("purchases:detail", pk=purchase.pk)
-

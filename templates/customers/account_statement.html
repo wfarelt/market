@@ -23,6 +23,7 @@
         <p class="text-muted small mb-1">Monto Total Créditos</p>
         <h5 class="fw-semibold mb-0 font-monospace">{{ total_credits }}</h5>
       </div>
+      <p class="text-muted small">Los saldos muestran el estado actual, no una reconstrucción histórica.</p>
     </div>
   </div>
   <div class="col-md-4">
@@ -53,7 +54,7 @@
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
           <strong class="font-monospace text-primary me-2">{{ credit.number }}</strong>
-          <span class="text-muted small">Venta: {{ credit.sale.number }} · {{ credit.created_at|date:"d/m/Y H:i" }}</span>
+          <span class="text-muted small">Venta: {{ credit.sale.number }} · Fecha de negocio: {{ credit.sale.business_date|date:"d/m/Y"|default:"No determinada" }} · Registro real: {{ credit.created_at|date:"d/m/Y H:i" }}</span>
         </div>
         <div>
           <span class="badge rounded-pill {% if credit.status == 'PAID' %}bg-success{% elif credit.status == 'PARTIAL' %}bg-info text-dark{% elif credit.status == 'CANCELLED' %}bg-secondary{% else %}bg-warning text-dark{% endif %} me-2">
@@ -68,7 +69,7 @@
         <table class="table table-sm table-borderless align-middle bg-light rounded mb-0">
           <thead>
             <tr class="text-muted small border-bottom">
-              <th>Fecha Pago</th>
+              <th>Fechas del pago</th>
               <th>Caja</th>
               <th>Monto Pagado</th>
               <th>Observación</th>
@@ -77,7 +78,7 @@
           <tbody>
             {% for payment in credit.payments.all %}
             <tr class="small">
-              <td>{{ payment.created_at|date:"d/m/Y H:i" }}</td>
+              <td>Negocio: {{ payment.business_date|date:"d/m/Y"|default:"No determinada" }}<br><span class="text-muted">Registro real: {{ payment.created_at|date:"d/m/Y H:i" }}</span></td>
               <td>Caja #{{ payment.cash_register.pk }}</td>
               <td class="font-monospace text-success fw-semibold">+{{ payment.amount }}</td>
               <td>{{ payment.notes|default:"-" }}</td>

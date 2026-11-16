@@ -47,13 +47,18 @@
   </div>
 </div>
 
+<p class="text-muted small">Filtro por {% if historical_dates %}fecha de negocio{% else %}fecha de venta registrada{% endif %}.</p>
+{% if historical_dates and unknown_business_dates %}
+<div class="alert alert-warning" role="status">No se incluyen {{ unknown_business_dates }} ventas sin fecha de negocio entre las que cumplen los demás filtros y permisos. Al no tener fecha, no se puede determinar si corresponden al día seleccionado.</div>
+{% endif %}
+
 <div class="card border-0 shadow-sm">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
         <tr>
           <th>Número</th>
-          <th>Fecha</th>
+          <th>{% if historical_dates %}Fecha de negocio{% else %}Fecha{% endif %}</th>
           <th>Usuario</th>
           <th>Cliente</th>
           <th>Método</th>
@@ -66,7 +71,7 @@
         {% for sale in sales %}
         <tr>
           <td class="font-monospace fw-semibold">{{ sale.number }}</td>
-          <td class="small">{{ sale.completed_at|date:"d/m/Y H:i" }}</td>
+          <td class="small">{% if historical_dates %}{{ sale.business_date|date:"d/m/Y" }}{% else %}{{ sale.completed_at|date:"d/m/Y H:i" }}{% endif %}</td>
           <td>{{ sale.user.username }}</td>
           <td>{{ sale.customer|default:"Consumidor final" }}</td>
           <td>{{ sale.get_payment_method_display }}</td>

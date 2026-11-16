@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Fecha de trabajo{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h5 class="mb-0 fw-semibold">Fecha de trabajo global</h5>
+</div>
+<div class="alert alert-warning" role="status">
+  El modo histórico todavía no está disponible para operaciones. Se habilitará cuando todos los módulos estén integrados.
+</div>
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <p>Fecha de trabajo actual: <strong>{{ business_date|date:"d/m/Y" }}</strong></p>
+    <p class="text-muted small">Los cambios afectan a todas las sucursales. Deben estar cerradas todas las cajas y recibidos los traspasos pendientes. Si ya está en modo histórico y solo quedan traspasos antiguos sin fecha, puede volver a automático para recibirlos.</p>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors|join:", " }}</div>{% endif %}
+      {% for field in form %}
+      <div class="mb-3">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|join:", " }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      <div class="d-flex justify-content-end"><button class="btn btn-primary" type="submit">Guardar</button></div>
+    </form>
+  </div>
+</div>
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <h6 class="fw-semibold">Últimos cambios</h6>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>Registro</th><th>Usuario</th><th>Anterior</th><th>Nuevo</th></tr></thead>
+        <tbody>
+          {% for change in changes %}
+          <tr>
+            <td>{{ change.created_at|date:"d/m/Y H:i" }}</td>
+            <td>{{ change.created_by|default:"Usuario eliminado" }}</td>
+            <td>{{ change.get_previous_mode_display }}{% if change.previous_date %} · {{ change.previous_date|date:"d/m/Y" }}{% endif %}</td>
+            <td>{{ change.get_new_mode_display }}{% if change.new_date %} · {{ change.new_date|date:"d/m/Y" }}{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted">No hay cambios registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

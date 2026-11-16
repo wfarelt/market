@@ -40,6 +40,8 @@ class Sale(TimeStampedModel):
 	cash_movement = models.OneToOneField(CashMovement, null=True, blank=True, on_delete=models.PROTECT, related_name="sale")
 	cancelled_inventory_movement = models.OneToOneField(InventoryMovement, null=True, blank=True, on_delete=models.PROTECT, related_name="cancelled_sale")
 	cancelled_cash_movement = models.OneToOneField(CashMovement, null=True, blank=True, on_delete=models.PROTECT, related_name="cancelled_sale")
+	business_date = models.DateField(null=True, blank=True, verbose_name="fecha de negocio")
+	confirmed_at = models.DateTimeField(null=True, blank=True, verbose_name="confirmación real")
 	completed_at = models.DateTimeField(null=True, blank=True)
 	cancelled_at = models.DateTimeField(null=True, blank=True)
 	notes = models.TextField(blank=True)
@@ -78,4 +80,3 @@ class SaleItem(TimeStampedModel):
 	def save(self, *args, **kwargs):
 		self.subtotal = self.unit_price * self.quantity - self.discount_amount
 		super().save(*args, **kwargs)
-

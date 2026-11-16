@@ -39,6 +39,7 @@ class Purchase(TimeStampedModel):
 	branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name="purchases")
 	supplier = models.ForeignKey(Supplier, null=True, blank=True, on_delete=models.PROTECT, related_name="purchases", verbose_name="proveedor")
 	purchase_date = models.DateField(default=timezone.localdate, verbose_name="fecha de compra")
+	business_date = models.DateField(null=True, blank=True, verbose_name="fecha de negocio")
 	invoice_number = models.CharField(max_length=50, blank=True, verbose_name="número de factura")
 	status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_DRAFT)
 	discount = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True, validators=[MinValueValidator(0)], verbose_name="descuento")
@@ -79,4 +80,3 @@ class PurchaseItem(TimeStampedModel):
 	@property
 	def subtotal(self):
 		return self.quantity * self.unit_cost
-

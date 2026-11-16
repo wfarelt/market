@@ -72,6 +72,12 @@
         <i class="bi bi-people me-2"></i>Clientes
       </a>
     </li>
+    <li class="nav-item">
+      <a class="nav-link text-dark {% if request.resolver_match.url_name == 'business-date' %}fw-semibold{% endif %}"
+         href="{% url 'settings_app:business-date' %}">
+        <i class="bi bi-calendar3 me-2"></i>Fecha de trabajo
+      </a>
+    </li>
     {% if request.user.role == 'superadmin' or request.user.role == 'admin' %}
     <li class="nav-item">
       <a class="nav-link text-dark {% if request.resolver_match.app_name == 'purchases' %}fw-semibold{% endif %}"

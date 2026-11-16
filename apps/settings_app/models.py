@@ -50,3 +50,37 @@ class CompanySettings(TimeStampedModel):
 		obj, _ = cls.objects.get_or_create(pk=1, defaults={"name": "Mi Empresa"})
 		return obj
 
+
+class BusinessDateSettings(TimeStampedModel):
+	MODE_AUTOMATIC = "AUTOMATIC"
+	MODE_HISTORICAL = "HISTORICAL"
+	MODE_CHOICES = [(MODE_AUTOMATIC, "Automático"), (MODE_HISTORICAL, "Histórico")]
+
+	mode = models.CharField(max_length=10, choices=MODE_CHOICES, default=MODE_AUTOMATIC)
+	business_date = models.DateField(null=True, blank=True)
+
+	class Meta:
+		constraints = [
+			models.CheckConstraint(condition=models.Q(pk=1), name="business_date_settings_singleton"),
+			models.CheckConstraint(
+				condition=(
+					models.Q(mode="AUTOMATIC", business_date__isnull=True)
+					| models.Q(mode="HISTORICAL", business_date__isnull=False)
+				),
+				name="business_date_settings_valid_mode",
+			),
+		]
+		verbose_name = "fecha de trabajo"
+		verbose_name_plural = "fecha de trabajo"
+
+
+class BusinessDateChange(TimeStampedModel):
+	previous_mode = models.CharField(max_length=10, choices=BusinessDateSettings.MODE_CHOICES)
+	previous_date = models.DateField(null=True, blank=True)
+	new_mode = models.CharField(max_length=10, choices=BusinessDateSettings.MODE_CHOICES)
+	new_date = models.DateField(null=True, blank=True)
+
+	class Meta:
+		ordering = ["-created_at", "-pk"]
+		verbose_name = "cambio de fecha de trabajo"
+		verbose_name_plural = "cambios de fecha de trabajo"

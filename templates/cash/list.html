@@ -34,7 +34,7 @@
   <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
     <div>
       <h6 class="fw-semibold mb-0">Resumen de Caja Activa #{{ open_register.pk }}</h6>
-      <span class="text-muted small">Abierta el {{ open_register.opened_at|date:"d/m/Y H:i" }} por {{ open_register.user.username }} ({{ open_register.branch.name }})</span>
+      <span class="text-muted small">Fecha de negocio: {{ open_register.business_date|date:"d/m/Y"|default:"No determinada" }} · Abierta el {{ open_register.opened_at|date:"d/m/Y H:i" }} por {{ open_register.user.username }} ({{ open_register.branch.name }})</span>
     </div>
     <span class="badge bg-success">Abierta</span>
   </div>
@@ -60,7 +60,7 @@
       </div>
       <div class="col-sm-6 col-md">
         <div class="p-2 border rounded bg-light">
-          <span class="text-muted small d-block">Ingresos Efectivo</span>
+          <span class="text-muted small d-block">Ingresos (ventas y cobros)</span>
           <strong class="font-monospace h6 mb-0 text-success">+{{ open_register.total_cash_income }}</strong>
           <small class="d-block text-muted small">(Ventas: {{ open_register.total_sales }} · Cobros: {{ open_register.total_credit_collections }})</small>
         </div>
@@ -122,11 +122,11 @@
           <th>N°</th>
           <th>Usuario</th>
           <th>Sucursal</th>
-          <th>Apertura</th>
+          <th>Fecha de negocio / Apertura real</th>
           <th>Saldo Inicial</th>
           <th>Gastos</th>
           <th>Remanente Chica</th>
-          <th>Ingresos Ef.</th>
+          <th>Ingresos</th>
           <th>Saldo Cierre / Esperado</th>
           <th>Diferencia</th>
           <th>Estado</th>
@@ -141,7 +141,7 @@
           </td>
           <td>{{ cash_register.user.username }}</td>
           <td>{{ cash_register.branch.name }}</td>
-          <td class="font-monospace small">{{ cash_register.opened_at|date:"d/m/Y H:i" }}</td>
+          <td class="font-monospace small">{{ cash_register.business_date|date:"d/m/Y"|default:"No determinada" }}<small class="d-block text-muted">{{ cash_register.opened_at|date:"d/m/Y H:i" }}</small></td>
           <td class="font-monospace">{{ cash_register.opening_amount }}</td>
           <td class="font-monospace text-danger">-{{ cash_register.total_expenses }}</td>
           <td class="font-monospace fw-semibold text-warning-emphasis">{{ cash_register.remaining_petty_cash }}</td>

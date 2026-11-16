@@ -11,7 +11,7 @@
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
       <div class="row g-3">
-        <div class="col-md-4"><label class="form-label" for="{{ form.movement_date.id_for_label }}">{{ form.movement_date.label }}</label>{{ form.movement_date }}{% if form.movement_date.errors %}<div class="invalid-feedback d-block">{{ form.movement_date.errors|join:", " }}</div>{% endif %}</div>
+        <div class="col-md-4"><label class="form-label" for="{{ form.movement_date.id_for_label }}">{{ form.movement_date.label }}</label>{{ form.movement_date }}{% if form.movement_date.help_text %}<div class="form-text">{{ form.movement_date.help_text }}</div>{% endif %}{% if form.movement_date.errors %}<div class="invalid-feedback d-block">{{ form.movement_date.errors|join:", " }}</div>{% endif %}</div>
         <div class="col-md-4"><label class="form-label" for="{{ form.movement_type.id_for_label }}">{{ form.movement_type.label }}</label>{{ form.movement_type }}{% if form.movement_type.errors %}<div class="invalid-feedback d-block">{{ form.movement_type.errors|join:", " }}</div>{% endif %}</div>
         <div class="col-md-4"><label class="form-label" for="{{ form.branch.id_for_label }}">{{ form.branch.label }}</label>{{ form.branch }}{% if form.branch.errors %}<div class="invalid-feedback d-block">{{ form.branch.errors|join:", " }}</div>{% endif %}</div>
         <div class="col-12"><label class="form-label" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>{{ form.notes }}{% if form.notes.errors %}<div class="invalid-feedback d-block">{{ form.notes.errors|join:", " }}</div>{% endif %}</div>

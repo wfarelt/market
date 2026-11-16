@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
+from django import forms
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
@@ -8,7 +9,8 @@ from django.utils import timezone
 from apps.cash.models import CashMovement, CashRegister
 from apps.inventory.models import InventoryMovement, InventoryMovementLine
 from apps.inventory.services import post_inventory_movement
-from apps.settings_app.models import CompanySettings
+from apps.settings_app.models import BusinessDateSettings, CompanySettings
+from apps.settings_app.locking import lock_business_date
 from apps.users.models import User
 
 from .models import Sale, SaleItem
@@ -74,6 +76,32 @@ def add_sale_item(*, sale, product, quantity, user):
 
 
 @transaction.atomic
+def update_historical_item_price(*, item, unit_price, user):
+	date_settings = lock_business_date()
+	if date_settings.mode != BusinessDateSettings.MODE_HISTORICAL:
+		raise ValidationError("Solo se puede cambiar el precio de una venta durante la carga histórica.")
+	sale = Sale.objects.select_for_update().get(pk=item.sale_id)
+	if sale.status != Sale.STATUS_DRAFT:
+		raise ValidationError("Solo se pueden modificar ventas en borrador.")
+	if sale.user_id != user.id or sale.branch_id != user.branch_id:
+		raise ValidationError("No puedes modificar esta venta.")
+	cash_register = CashRegister.objects.select_for_update().filter(
+		pk=sale.cash_register_id, user=user, branch=sale.branch, status=CashRegister.STATUS_OPEN,
+	).first()
+	if not cash_register:
+		raise ValidationError("La caja asociada no está abierta.")
+	if not cash_register.business_date or cash_register.business_date != date_settings.business_date:
+		raise ValidationError("La fecha de negocio de la caja no coincide con la fecha de trabajo.")
+	item = SaleItem.objects.select_for_update().get(pk=item.pk, sale=sale)
+	price = forms.DecimalField(min_value=0, max_digits=12, decimal_places=2).clean(unit_price)
+	if price * item.quantity < item.discount_amount:
+		raise ValidationError("El precio no puede ser menor que el descuento de la línea.")
+	item.unit_price = price
+	item.save(update_fields=["unit_price", "subtotal", "updated_at"])
+	return calculate_totals(sale)
+
+
+@transaction.atomic
 def clear_sale_items(*, sale, user):
 	sale = Sale.objects.select_for_update().get(pk=sale.pk)
 	if sale.status != Sale.STATUS_DRAFT:
@@ -86,6 +114,7 @@ def clear_sale_items(*, sale, user):
 
 @transaction.atomic
 def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=None, discount_amount=None, sale_date: date | None = None):
+	date_settings = lock_business_date()
 	sale = Sale.objects.select_for_update().prefetch_related("items__product").get(pk=sale.pk)
 	if sale.status != Sale.STATUS_DRAFT:
 		raise ValidationError("La venta ya fue procesada.")
@@ -96,6 +125,14 @@ def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=Non
 	cash_register = CashRegister.objects.select_for_update().filter(pk=sale.cash_register_id, user=user, branch=sale.branch, status=CashRegister.STATUS_OPEN).first()
 	if not cash_register:
 		raise ValidationError("La caja asociada no está abierta.")
+	if date_settings.mode == BusinessDateSettings.MODE_HISTORICAL:
+		if not cash_register.business_date:
+			raise ValidationError("La caja no tiene fecha de negocio. Ciérrala y abre una nueva caja.")
+		if cash_register.business_date != date_settings.business_date:
+			raise ValidationError("La fecha de negocio de la caja no coincide con la fecha de trabajo.")
+		if sale_date is not None and sale_date != cash_register.business_date:
+			raise ValidationError("La fecha de venta debe coincidir con la fecha de negocio de la caja.")
+		sale_date = cash_register.business_date
 	if not sale.items.exists():
 		raise ValidationError("La venta debe tener al menos un producto.")
 	if discount_amount is not None:
@@ -117,14 +154,18 @@ def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=Non
 	if payment_method == Sale.PAYMENT_CREDIT:
 		if not sale.customer_id:
 			raise ValidationError("Debes seleccionar un cliente para realizar una venta a crédito.")
-	movement = InventoryMovement.objects.create(movement_type=InventoryMovement.TYPE_OUTPUT, branch=sale.branch, notes=f"Salida por venta {sale.number}", created_by=user)
+	movement_data = {}
+	if date_settings.mode == BusinessDateSettings.MODE_HISTORICAL:
+		movement_data["movement_date"] = sale_date
+	movement = InventoryMovement.objects.create(movement_type=InventoryMovement.TYPE_OUTPUT, branch=sale.branch, notes=f"Salida por venta {sale.number}", created_by=user, **movement_data)
 	for item in sale.items.all():
 		InventoryMovementLine.objects.create(movement=movement, product=item.product, quantity=item.quantity, created_by=user)
 	post_inventory_movement(movement)
 	cash_movement = None
 	if payment_method != Sale.PAYMENT_CREDIT:
 		cash_movement = CashMovement.objects.create(cash_register=cash_register, movement_type=CashMovement.TYPE_SALE, amount=sale.total, description=f"Venta {sale.number} ({payment_method})", created_by=user)
-	completed_at = timezone.now()
+	confirmed_at = timezone.now()
+	completed_at = confirmed_at
 	if sale_date is not None:
 		completed_at = timezone.localtime(completed_at).replace(
 			year=sale_date.year,
@@ -132,7 +173,9 @@ def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=Non
 			day=sale_date.day,
 		)
 	sale.status, sale.payment_method, sale.inventory_movement, sale.cash_movement, sale.completed_at = Sale.STATUS_COMPLETED, payment_method, movement, cash_movement, completed_at
-	sale.save(update_fields=["status", "payment_method", "customer", "cash_received", "change_amount", "inventory_movement", "cash_movement", "completed_at", "updated_at"])
+	sale.business_date = sale_date or timezone.localdate(confirmed_at)
+	sale.confirmed_at = confirmed_at
+	sale.save(update_fields=["status", "payment_method", "customer", "cash_received", "change_amount", "inventory_movement", "cash_movement", "completed_at", "business_date", "confirmed_at", "updated_at"])
 	if payment_method == Sale.PAYMENT_CREDIT:
 		from apps.customers.services import create_credit_from_sale
 		create_credit_from_sale(sale=sale, user=user)

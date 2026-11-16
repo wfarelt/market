@@ -204,7 +204,15 @@
                                     <strong class="d-block">{{ item.product.name }}</strong>
                                     <small class="text-muted font-monospace">{{ item.unit_price }} Bs c/u</small>
                                 </td>
-                                <td class="text-end font-monospace">{{ item.unit_price }} Bs</td>
+                                <td class="text-end font-monospace">
+                                    {% if historical %}
+                                    <form method="post" action="{% url 'sales:update-price' item.pk %}" class="d-flex align-items-center gap-1">
+                                        {% csrf_token %}
+                                        <input type="number" name="unit_price" value="{{ item.unit_price|stringformat:'.2f' }}" min="0" max="9999999999.99" step="0.01" required class="form-control form-control-sm text-end" aria-label="Precio histórico de {{ item.product.name }}">
+                                        <button class="btn btn-sm btn-outline-secondary" type="submit" aria-label="Guardar precio de {{ item.product.name }}">Guardar</button>
+                                    </form>
+                                    {% else %}{{ item.unit_price }} Bs{% endif %}
+                                </td>
                                 <td class="text-center">
                                     <form method="post" action="{% url 'sales:update-item' item.pk %}" class="d-inline-flex align-items-center gap-1">
                                         {% csrf_token %}
@@ -261,6 +269,12 @@
                         <div class="mb-3">
                             <label class="form-label fw-semibold small" for="{{ checkout_form.sale_date.id_for_label }}">Fecha de venta</label>
                             {{ checkout_form.sale_date }}
+                            {% if checkout_form.sale_date.help_text %}
+                            <div class="form-text">{{ checkout_form.sale_date.help_text }}</div>
+                            {% endif %}
+                            {% if historical_cash_date_missing %}
+                            <div class="invalid-feedback d-block">La caja no tiene fecha de negocio. Ciérrala y abre una nueva caja.</div>
+                            {% endif %}
                             {% if checkout_form.sale_date.errors %}
                             <div class="invalid-feedback d-block">{{ checkout_form.sale_date.errors|join:", " }}</div>
                             {% endif %}

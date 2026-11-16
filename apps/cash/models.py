@@ -16,6 +16,7 @@ class CashRegister(TimeStampedModel):
 	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="cash_registers")
 	branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name="cash_registers")
 	status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_OPEN)
+	business_date = models.DateField(null=True, blank=True, verbose_name="fecha de negocio")
 	opened_at = models.DateTimeField(auto_now_add=True)
 	opening_amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
 	closed_at = models.DateTimeField(null=True, blank=True)
@@ -131,4 +132,3 @@ class PettyCashExpense(TimeStampedModel):
 		ordering = ["-created_at"]
 		verbose_name = "gasto de caja chica"
 		verbose_name_plural = "gastos de caja chica"
-
