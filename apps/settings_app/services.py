@@ -12,7 +12,7 @@ from .locking import lock_business_date
 
 
 # Enable only after all operational modules use the business date.
-HISTORICAL_OPERATIONS_SUPPORTED = False
+HISTORICAL_OPERATIONS_SUPPORTED = True
 
 
 def get_business_date():

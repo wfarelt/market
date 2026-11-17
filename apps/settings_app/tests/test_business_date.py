@@ -26,6 +26,7 @@ class BusinessDateTests(TestCase):
 	def test_automatic_date_uses_local_today(self):
 		self.assertEqual(get_business_date(), timezone.localdate())
 
+	@patch("apps.settings_app.services.HISTORICAL_OPERATIONS_SUPPORTED", False)
 	def test_historical_mode_is_unavailable_until_integration(self):
 		with self.assertRaisesMessage(ValidationError, "El modo histórico todavía no está disponible"):
 			change_business_date(user=self.user, mode=BusinessDateSettings.MODE_HISTORICAL, business_date=self.yesterday)
@@ -97,6 +98,7 @@ class BusinessDateTests(TestCase):
 		change_business_date(user=self.user, mode=BusinessDateSettings.MODE_AUTOMATIC)
 		self.assertFalse(BusinessDateChange.objects.exists())
 
+	@patch("apps.settings_app.services.HISTORICAL_OPERATIONS_SUPPORTED", False)
 	def test_operator_can_see_screen_but_cannot_activate_historical_mode(self):
 		self.client.force_login(self.user)
 		url = reverse("settings_app:business-date")
@@ -108,6 +110,18 @@ class BusinessDateTests(TestCase):
 		})
 		self.assertContains(response, "El modo histórico todavía no está disponible")
 		self.assertFalse(BusinessDateChange.objects.exists())
+
+	@patch("apps.settings_app.services.HISTORICAL_OPERATIONS_SUPPORTED", True)
+	def test_unavailable_warning_is_hidden_when_historical_mode_is_supported(self):
+		self.client.force_login(self.user)
+		url = reverse("settings_app:business-date")
+		self.assertNotContains(self.client.get(url), "El modo histórico todavía no está disponible")
+		response = self.client.post(url, {
+			"mode": BusinessDateSettings.MODE_HISTORICAL,
+			"business_date": self.yesterday.isoformat(),
+		})
+		self.assertRedirects(response, url)
+		self.assertEqual(BusinessDateSettings.objects.get(pk=1).business_date, self.yesterday)
 
 	def test_legacy_recovery_is_available_through_settings_screen(self):
 		BusinessDateSettings.objects.filter(pk=1).update(

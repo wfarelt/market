@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.views.generic import FormView, UpdateView
 
 from apps.users.models import User
+from . import services
 from .forms import BusinessDateForm, CompanySettingsForm
 from .models import BusinessDateChange, BusinessDateSettings, CompanySettings
 from .services import change_business_date, get_business_date
@@ -55,6 +56,7 @@ class BusinessDateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
 		context["business_date"] = get_business_date()
+		context["historical_operations_supported"] = services.HISTORICAL_OPERATIONS_SUPPORTED
 		context["changes"] = BusinessDateChange.objects.select_related("created_by")[:20]
 		return context
 

@@ -6,9 +6,9 @@
 <div class="d-flex align-items-center justify-content-between mb-4">
   <h5 class="mb-0 fw-semibold">Fecha de trabajo global</h5>
 </div>
-<div class="alert alert-warning" role="status">
+{% if not historical_operations_supported %}<div class="alert alert-warning" role="status">
   El modo histórico todavía no está disponible para operaciones. Se habilitará cuando todos los módulos estén integrados.
-</div>
+</div>{% endif %}
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-4">
     <p>Fecha de trabajo actual: <strong>{{ business_date|date:"d/m/Y" }}</strong></p>
