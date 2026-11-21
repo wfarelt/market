@@ -36,6 +36,7 @@ class InventoryMovementFilterForm(forms.Form):
 
 
 class StockFilterForm(forms.Form):
+	search = forms.CharField(required=False, label="Buscar producto")
 	branch = forms.ModelChoiceField(
 		queryset=Branch.objects.filter(is_active=True),
 		required=False,
@@ -46,6 +47,12 @@ class StockFilterForm(forms.Form):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
+		self.fields["search"].widget.attrs.update(
+			{
+				"class": "form-control",
+				"placeholder": "Nombre o SKU",
+			}
+		)
 		self.fields["branch"].widget.attrs["class"] = "form-select"
 		self.fields["has_stock"].widget.attrs["class"] = "form-check-input"
 

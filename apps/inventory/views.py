@@ -42,6 +42,10 @@ class StockListView(StockAccessMixin, ListView):
 		self.filter_form = StockFilterForm(self.request.GET)
 		if not self.filter_form.is_valid():
 			return queryset.none()
+		if search := self.filter_form.cleaned_data["search"]:
+			queryset = queryset.filter(
+				Q(product__name__icontains=search) | Q(product__sku__icontains=search)
+			)
 		if branch := self.filter_form.cleaned_data["branch"]:
 			queryset = queryset.filter(branch=branch)
 		if self.filter_form.cleaned_data["has_stock"]:

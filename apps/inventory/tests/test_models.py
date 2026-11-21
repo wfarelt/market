@@ -90,6 +90,31 @@ class StockModelTests(TestCase):
 		self.assertCountEqual(list(default_response.context["stocks"]), [positive_stock, zero_stock])
 		self.assertEqual(list(filtered_response.context["stocks"]), [positive_stock])
 
+	def test_stock_list_searches_products_by_name_or_sku(self):
+		name_match = Stock.objects.create(product=self.product, branch=self.central, quantity=10)
+		sku_match = Stock.objects.create(
+			product=Product.objects.create(name="Agua", sku="COLA-600"),
+			branch=self.central,
+			quantity=5,
+		)
+		Stock.objects.create(
+			product=Product.objects.create(name="Jugo", sku="JUGO-600"),
+			branch=self.central,
+			quantity=3,
+		)
+		admin = User.objects.create_user(
+			username="search_admin",
+			branch=self.central,
+			role=User.ROLE_ADMIN,
+		)
+		self.client.force_login(admin)
+
+		name_response = self.client.get(reverse("inventory:list"), {"search": "coca"})
+		sku_response = self.client.get(reverse("inventory:list"), {"search": "cola-600"})
+
+		self.assertEqual(list(name_response.context["stocks"]), [name_match])
+		self.assertEqual(list(sku_response.context["stocks"]), [sku_match])
+
 	def test_stock_list_is_available_to_all_roles(self):
 		for role in User.ROLE_CHOICES:
 			role_code = role[0]
