@@ -22,7 +22,7 @@ from apps.inventory.models import Stock
 
 from .forms import CheckoutForm
 from .models import Sale, SaleItem
-from .services import add_sale_item, calculate_totals, clear_sale_items, confirm_sale, create_sale, update_historical_item_price, update_sale_discount
+from .services import add_sale_item, calculate_totals, cancel_sale, clear_sale_items, confirm_sale, create_sale, update_historical_item_price, update_sale_discount
 
 
 class SalesAccessMixin(LoginRequiredMixin):
@@ -296,6 +296,7 @@ class SaleListView(SaleListAccessMixin, ListView):
 		context["historical_dates"] = self.date_settings.mode == BusinessDateSettings.MODE_HISTORICAL
 		context["unknown_business_dates"] = self.unknown_business_dates
 		context["can_filter_users"] = self.request.user.role in {User.ROLE_ADMIN, User.ROLE_SUPERADMIN}
+		context["can_cancel_sales"] = self.request.user.role in {User.ROLE_ADMIN, User.ROLE_SUPERADMIN}
 		if context["can_filter_users"]:
 			context["sales_users"] = User.objects.order_by("username")
 			context["selected_user"] = self.request.GET.get("user", "").strip()
@@ -304,6 +305,43 @@ class SaleListView(SaleListAccessMixin, ListView):
 			(Sale.STATUS_CANCELLED, "Anulada"),
 		]
 		return context
+
+
+class SaleCancelAccessMixin(SaleListAccessMixin):
+	def dispatch(self, request, *args, **kwargs):
+		if request.user.is_authenticated and request.user.role not in {User.ROLE_ADMIN, User.ROLE_SUPERADMIN}:
+			raise Http404
+		return super().dispatch(request, *args, **kwargs)
+
+	def get_sale(self):
+		queryset = Sale.objects.select_related("cash_register")
+		if self.request.user.role != User.ROLE_SUPERADMIN:
+			queryset = queryset.filter(branch_id=self.request.user.branch_id)
+		return get_object_or_404(
+			queryset,
+			pk=self.kwargs["pk"],
+			status=Sale.STATUS_COMPLETED,
+			cash_register__status=CashRegister.STATUS_OPEN,
+		)
+
+
+class SaleCancelView(SaleCancelAccessMixin, TemplateView):
+	template_name = "sales/confirm_cancel.html"
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context["sale"] = self.get_sale()
+		return context
+
+	def post(self, request, *args, **kwargs):
+		sale = self.get_sale()
+		try:
+			cancel_sale(sale=sale, user=request.user)
+		except ValidationError as error:
+			messages.error(request, "; ".join(error.messages))
+		else:
+			messages.success(request, f"Venta {sale.number} anulada correctamente.")
+		return redirect("sales:list")
 
 
 class PosCheckoutView(PosAccessMixin, TemplateView):

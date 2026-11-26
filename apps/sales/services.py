@@ -180,3 +180,85 @@ def confirm_sale(*, sale, user, payment_method, cash_received=None, customer=Non
 		from apps.customers.services import create_credit_from_sale
 		create_credit_from_sale(sale=sale, user=user)
 	return sale
+
+
+@transaction.atomic
+def cancel_sale(*, sale, user):
+	date_settings = lock_business_date()
+	sale = Sale.objects.select_for_update().get(pk=sale.pk)
+	if user.role not in {User.ROLE_ADMIN, User.ROLE_SUPERADMIN}:
+		raise ValidationError("Solo un administrador puede anular ventas.")
+	if user.role == User.ROLE_ADMIN and sale.branch_id != user.branch_id:
+		raise ValidationError("Solo puedes anular ventas de tu sucursal.")
+	if sale.status != Sale.STATUS_COMPLETED:
+		raise ValidationError("Solo se pueden anular ventas completadas.")
+
+	cash_register = CashRegister.objects.select_for_update().get(pk=sale.cash_register_id)
+	if cash_register.status != CashRegister.STATUS_OPEN:
+		raise ValidationError("No se puede anular una venta cuya caja ya está cerrada.")
+	if date_settings.mode == BusinessDateSettings.MODE_HISTORICAL:
+		if not sale.business_date or sale.business_date != date_settings.business_date or cash_register.business_date != date_settings.business_date:
+			raise ValidationError("La fecha de negocio de la venta no coincide con la fecha de trabajo.")
+		movement_date = sale.business_date
+	else:
+		movement_date = timezone.localdate()
+
+	items = list(sale.items.select_related("product"))
+	if not items:
+		raise ValidationError("No se puede anular una venta sin productos.")
+
+	credit = None
+	if sale.payment_method == Sale.PAYMENT_CREDIT:
+		from apps.customers.models import Credit
+
+		credit = Credit.objects.select_for_update().filter(sale=sale).first()
+		if not credit:
+			raise ValidationError("No se encontró el crédito asociado a la venta.")
+		if credit.payments.exists() or credit.status != Credit.STATUS_PENDING or credit.balance != credit.original_amount:
+			raise ValidationError("No se puede anular un crédito que ya tiene pagos registrados.")
+	elif not sale.cash_movement_id:
+		raise ValidationError("No se encontró el movimiento de caja asociado a la venta.")
+
+	inventory_movement = InventoryMovement.objects.create(
+		movement_type=InventoryMovement.TYPE_ENTRY,
+		movement_date=movement_date,
+		branch=sale.branch,
+		notes=f"Devolución por anulación de venta {sale.number}",
+		created_by=user,
+	)
+	for item in items:
+		InventoryMovementLine.objects.create(
+			movement=inventory_movement,
+			product=item.product,
+			quantity=item.quantity,
+			created_by=user,
+		)
+	post_inventory_movement(inventory_movement)
+
+	cash_movement = None
+	if sale.cash_movement_id:
+		cash_movement = CashMovement.objects.create(
+			cash_register=cash_register,
+			movement_type=CashMovement.TYPE_REFUND,
+			amount=sale.total,
+			description=f"Devolución por anulación de venta {sale.number}",
+			created_by=user,
+		)
+
+	if credit:
+		credit.status = Credit.STATUS_CANCELLED
+		credit.balance = Decimal("0")
+		credit.save(update_fields=["status", "balance", "updated_at"])
+
+	sale.status = Sale.STATUS_CANCELLED
+	sale.cancelled_inventory_movement = inventory_movement
+	sale.cancelled_cash_movement = cash_movement
+	sale.cancelled_at = timezone.now()
+	sale.save(update_fields=[
+		"status",
+		"cancelled_inventory_movement",
+		"cancelled_cash_movement",
+		"cancelled_at",
+		"updated_at",
+	])
+	return sale

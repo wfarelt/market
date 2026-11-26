@@ -9,10 +9,12 @@ from django.utils import timezone
 from apps.branches.models import Branch
 from apps.cash.models import CashMovement, CashRegister
 from apps.cash.services import close_cash_register, open_cash_register
-from apps.inventory.models import Stock
+from apps.customers.models import Credit, Customer
+from apps.customers.services import register_credit_payment
+from apps.inventory.models import InventoryMovement, Stock
 from apps.products.models import Product
 from apps.sales.models import Sale
-from apps.sales.services import add_sale_item, confirm_sale, create_sale
+from apps.sales.services import add_sale_item, cancel_sale, confirm_sale, create_sale
 from apps.settings_app.models import CompanySettings
 from apps.users.models import User
 
@@ -21,9 +23,9 @@ class SaleServiceTests(TestCase):
 	def setUp(self):
 		self.branch = Branch.objects.create(name="Central", code="CENTRAL")
 		self.user = User.objects.create_user(username="cashier", password="test-password", branch=self.branch, role=User.ROLE_CAJERO)
-		open_cash_register(user=self.user, opening_amount=Decimal("100"))
+		self.register = open_cash_register(user=self.user, opening_amount=Decimal("100"))
 		self.product = Product.objects.create(name="Coca Cola", sku="COCA-600", list_price=Decimal("12.50"))
-		Stock.objects.create(product=self.product, branch=self.branch, quantity=Decimal("10"))
+		self.stock = Stock.objects.create(product=self.product, branch=self.branch, quantity=Decimal("10"))
 
 	def test_confirm_sale_deducts_stock_and_creates_movements(self):
 		sale = create_sale(user=self.user)
@@ -204,3 +206,102 @@ class SaleServiceTests(TestCase):
 
 		response = self.client.get(reverse("sales:list"), {"date": timezone.localdate(sale.completed_at).isoformat()})
 		self.assertContains(response, sale.number)
+
+	def create_completed_sale(self, quantity=2, payment_method=Sale.PAYMENT_CASH):
+		sale = create_sale(user=self.user)
+		add_sale_item(sale=sale, product=self.product, quantity=quantity, user=self.user)
+		checkout = {"payment_method": payment_method}
+		if payment_method == Sale.PAYMENT_CASH:
+			checkout["cash_received"] = Decimal("50")
+		if payment_method == Sale.PAYMENT_CREDIT:
+			checkout["customer"] = Customer.objects.create(
+				first_name="Cliente",
+				last_name="Prueba",
+				id_document="123456",
+				created_by=self.user,
+			)
+		return confirm_sale(sale=sale, user=self.user, **checkout)
+
+	def test_admin_can_cancel_sale_while_its_cash_register_is_open(self):
+		admin = User.objects.create_user(username="admin-cancel", role=User.ROLE_ADMIN, branch=self.branch)
+		sale = self.create_completed_sale()
+		self.client.force_login(admin)
+
+		response = self.client.get(reverse("sales:cancel", args=[sale.pk]))
+		self.assertEqual(response.status_code, 200)
+		response = self.client.post(reverse("sales:cancel", args=[sale.pk]))
+
+		sale.refresh_from_db()
+		self.stock.refresh_from_db()
+		self.register.refresh_from_db()
+		self.assertRedirects(response, reverse("sales:list"))
+		self.assertEqual(sale.status, Sale.STATUS_CANCELLED)
+		self.assertEqual(self.stock.quantity, 10)
+		self.assertEqual(sale.cancelled_inventory_movement.movement_type, InventoryMovement.TYPE_ENTRY)
+		self.assertEqual(sale.cancelled_inventory_movement.status, InventoryMovement.STATUS_POSTED)
+		self.assertEqual(sale.cancelled_cash_movement.movement_type, CashMovement.TYPE_REFUND)
+		self.assertEqual(sale.cancelled_cash_movement.amount, sale.total)
+		self.assertEqual(self.register.total_expenses, sale.total)
+
+	def test_admin_cannot_cancel_sale_after_cash_register_closes(self):
+		admin = User.objects.create_user(username="admin-closed", role=User.ROLE_ADMIN, branch=self.branch)
+		sale = self.create_completed_sale()
+		close_cash_register(cash_register=self.register, user=self.user, closing_amount=Decimal("50"))
+		self.client.force_login(admin)
+
+		response = self.client.get(reverse("sales:cancel", args=[sale.pk]))
+
+		self.assertEqual(response.status_code, 404)
+		with self.assertRaisesMessage(ValidationError, "No se puede anular una venta cuya caja ya está cerrada."):
+			cancel_sale(sale=sale, user=admin)
+		sale.refresh_from_db()
+		self.stock.refresh_from_db()
+		self.assertEqual(sale.status, Sale.STATUS_COMPLETED)
+		self.assertEqual(self.stock.quantity, 8)
+
+	def test_cashier_cannot_cancel_sale(self):
+		sale = self.create_completed_sale()
+
+		with self.assertRaisesMessage(ValidationError, "Solo un administrador puede anular ventas."):
+			cancel_sale(sale=sale, user=self.user)
+		self.stock.refresh_from_db()
+		self.assertEqual(self.stock.quantity, 8)
+
+	def test_admin_cannot_cancel_sale_from_another_branch(self):
+		other_branch = Branch.objects.create(name="Norte", code="NORTE")
+		admin = User.objects.create_user(username="admin-other", role=User.ROLE_ADMIN, branch=other_branch)
+		sale = self.create_completed_sale()
+
+		with self.assertRaisesMessage(ValidationError, "Solo puedes anular ventas de tu sucursal."):
+			cancel_sale(sale=sale, user=admin)
+		self.stock.refresh_from_db()
+		self.assertEqual(self.stock.quantity, 8)
+
+	def test_admin_can_cancel_unpaid_credit_sale(self):
+		admin = User.objects.create_user(username="admin-credit", role=User.ROLE_ADMIN, branch=self.branch)
+		sale = self.create_completed_sale(payment_method=Sale.PAYMENT_CREDIT)
+
+		cancel_sale(sale=sale, user=admin)
+
+		sale.refresh_from_db()
+		self.stock.refresh_from_db()
+		sale.credit.refresh_from_db()
+		self.assertEqual(sale.status, Sale.STATUS_CANCELLED)
+		self.assertEqual(self.stock.quantity, 10)
+		self.assertEqual(sale.credit.status, Credit.STATUS_CANCELLED)
+		self.assertEqual(sale.credit.balance, Decimal("0"))
+		self.assertIsNone(sale.cancelled_cash_movement_id)
+
+	def test_admin_cannot_cancel_credit_sale_with_registered_payments(self):
+		admin = User.objects.create_user(username="admin-paid-credit", role=User.ROLE_ADMIN, branch=self.branch)
+		sale = self.create_completed_sale(payment_method=Sale.PAYMENT_CREDIT)
+		register_credit_payment(credit_pk=sale.credit.pk, amount=Decimal("5"), user=self.user)
+
+		with self.assertRaisesMessage(ValidationError, "No se puede anular un crédito que ya tiene pagos registrados."):
+			cancel_sale(sale=sale, user=admin)
+		sale.refresh_from_db()
+		self.stock.refresh_from_db()
+		sale.credit.refresh_from_db()
+		self.assertEqual(sale.status, Sale.STATUS_COMPLETED)
+		self.assertEqual(self.stock.quantity, 8)
+		self.assertEqual(sale.credit.status, Credit.STATUS_PARTIAL)

@@ -8,7 +8,7 @@
 		<div class="text-muted small">Confirmación real: {{ sale.confirmed_at|date:"d/m/Y H:i"|default:"No disponible" }}</div>
 	</div>
 	<div class="d-flex align-items-center flex-wrap gap-2">
-		<span class="badge bg-success">{{ sale.get_status_display }}</span>
+		<span class="badge {% if sale.status == 'COMPLETED' %}bg-success{% else %}bg-secondary{% endif %}">{{ sale.get_status_display }}</span>
 		<a href="{% url 'sales:list' %}" class="btn btn-sm btn-outline-secondary">
 			<i class="bi bi-receipt me-1"></i>Lista de ventas
 		</a>

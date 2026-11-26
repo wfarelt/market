@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Anular venta {{ sale.number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h5 class="mb-0 fw-semibold">Anular venta {{ sale.number }}</h5>
+  <a href="{% url 'sales:list' %}" class="btn btn-sm btn-outline-secondary">Volver a ventas</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <p>Esta acción marcará la venta como anulada, repondrá los productos al inventario y registrará la devolución en caja cuando corresponda. El registro de la venta se conservará.</p>
+    <p class="text-muted small">Las ventas a crédito con pagos registrados no se pueden anular.</p>
+    <div class="d-flex justify-content-end gap-2">
+      <a href="{% url 'sales:list' %}" class="btn btn-outline-secondary">Cancelar</a>
+      <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Confirmar anulación</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

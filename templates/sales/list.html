@@ -64,7 +64,7 @@
           <th>Método</th>
           <th class="text-end">Total</th>
           <th>Estado</th>
-          <th class="text-end">Detalle</th>
+          <th class="text-end">Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -83,7 +83,12 @@
             <span class="badge rounded-pill bg-secondary">Anulada</span>
             {% endif %}
           </td>
-          <td class="text-end"><a href="{% url 'sales:detail' sale.pk %}" class="btn btn-sm btn-outline-secondary" title="Ver venta"><i class="bi bi-eye"></i></a></td>
+          <td class="text-end">
+            <a href="{% url 'sales:detail' sale.pk %}" class="btn btn-sm btn-outline-secondary" title="Ver venta" aria-label="Ver venta"><i class="bi bi-eye"></i></a>
+            {% if can_cancel_sales and sale.status == 'COMPLETED' and sale.cash_register.status == 'OPEN' %}
+            <a href="{% url 'sales:cancel' sale.pk %}" class="btn btn-sm btn-outline-danger" title="Anular venta" aria-label="Anular venta"><i class="bi bi-trash"></i></a>
+            {% endif %}
+          </td>
         </tr>
         {% empty %}
         <tr><td colspan="8" class="text-center text-muted py-4">No se encontraron ventas.</td></tr>
